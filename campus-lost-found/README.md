@@ -46,4 +46,16 @@ The server defaults to `mongodb://localhost:27017/CampusLostFound`. Set a differ
 - `/api/lost-items`, `/api/found-items` — item reporting and administration
 - `/api/claims` — claim submission and administrator decisions
 
-The API uses cookie sessions. The default in-memory session store is suitable only for local development; configure a persistent session store and HTTPS before deployment.
+The API uses cookie sessions. Local development uses the default in-memory session store; production uses MongoDB-backed sessions and requires the `sessions` collection. HTTPS is required in production.
+
+## Deploy publicly with GitHub and Render
+
+The GitHub Pages site can host only the static frontend; it cannot run this API or connect to MongoDB. The repository includes a Render Blueprint (`render.yaml`) to deploy the Node.js app as a public web service. Render hosts the API and frontend together; MongoDB Atlas hosts the database.
+
+1. Create a MongoDB Atlas cluster and a database user with read/write access to the `CampusLostFound` database.
+2. Create these empty collections in that database: `students`, `lostItems`, `foundItems`, `claims`, and `sessions`. Production startup checks for them and does not create collections or copy local records. Add a TTL index to `sessions.expires` with `expireAfterSeconds: 0` so expired sessions are removed.
+3. In Atlas Network Access, allow the outbound IP addresses shown for your Render service. Avoid opening database access to all IP addresses.
+4. In Render, create a Blueprint from this GitHub repository and set `MONGODB_URI` to the Atlas connection string for `CampusLostFound`. Keep the credentials in Render's environment settings; do not commit them.
+5. Render generates `SESSION_SECRET` and sets `NODE_ENV=production` from `render.yaml`. After deployment, open the Render service URL and check `/api/health`.
+
+The first account registered has the `student` role. To enable administration on a fresh database, promote the intended administrator's student document to `role: "admin"` in Atlas. The free Render service may sleep when idle and take a short time to wake.

@@ -4,12 +4,15 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
+const { MongoStore } = require('connect-mongo');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/CampusLostFound';
 const DATABASE_NAME = new URL(MONGODB_URI).pathname.slice(1) || 'CampusLostFound';
 const COLLECTION_NAMES = ['students', 'lostItems', 'foundItems', 'claims'];
+const SESSION_COLLECTION_NAME = 'sessions';
 if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set in production.');
 }
@@ -20,8 +23,11 @@ const app = express();
 let collections;
 
 app.disable('x-powered-by');
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 app.use(express.json({ limit: '10mb' }));
-app.use(session({
+const sessionOptions = {
   name: 'campus.sid',
   secret: SESSION_SECRET,
   resave: false,
@@ -31,7 +37,16 @@ app.use(session({
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production'
   }
-}));
+};
+if (process.env.NODE_ENV === 'production') {
+  sessionOptions.store = MongoStore.create({
+    clientPromise: client.connect(),
+    dbName: DATABASE_NAME,
+    collectionName: SESSION_COLLECTION_NAME,
+    autoRemove: 'disabled'
+  });
+}
+app.use(session(sessionOptions));
 
 function publicStudent(student) {
   if (!student) return null;
@@ -386,13 +401,16 @@ async function start() {
   const existing = new Set(
     (await database.listCollections({}, { nameOnly: true }).toArray()).map(({ name }) => name)
   );
-  const missing = COLLECTION_NAMES.filter((name) => !existing.has(name));
+  const requiredCollections = process.env.NODE_ENV === 'production'
+    ? [...COLLECTION_NAMES, SESSION_COLLECTION_NAME]
+    : COLLECTION_NAMES;
+  const missing = requiredCollections.filter((name) => !existing.has(name));
   if (missing.length) {
     throw new Error(`Required existing MongoDB collections are missing: ${missing.join(', ')}. No collections were created.`);
   }
   collections = Object.fromEntries(COLLECTION_NAMES.map((name) => [name, database.collection(name)]));
 
-  app.listen(PORT, '127.0.0.1', () => {
+  app.listen(PORT, HOST, () => {
     console.log(`Campus Lost & Found is running at http://localhost:${PORT}`);
     console.log(`Connected to MongoDB database "${DATABASE_NAME}".`);
   });
