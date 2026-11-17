@@ -1,5 +1,14 @@
 const STORAGE_KEY = 'campusLostFoundAppState';
 
+function resolveAppPath(targetPath) {
+  const normalizedPath = String(targetPath || '').replace(/^\/+/, '');
+  const isInPagesFolder = window.location.pathname.includes('/pages/');
+  if (normalizedPath.startsWith('pages/')) {
+    return isInPagesFolder ? `./${normalizedPath.replace(/^pages\//, '')}` : `./${normalizedPath}`;
+  }
+  return isInPagesFolder ? `../${normalizedPath}` : `./${normalizedPath}`;
+}
+
 function getState() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
   if (!saved) {
@@ -45,7 +54,7 @@ function logoutUser() {
   const state = getState();
   state.currentUserId = null;
   saveState(state);
-  window.location.href = '/campus-lost-found/login.html';
+  window.location.href = resolveAppPath('login.html');
 }
 
 function renderStudentNavigation() {
@@ -54,20 +63,20 @@ function renderStudentNavigation() {
   const user = getCurrentUser();
   if (!user) {
     nav.innerHTML = `
-      <a href="/campus-lost-found/index.html">Home</a>
-      <a href="/campus-lost-found/login.html">Log in</a>
-      <a href="/campus-lost-found/register.html">Register</a>
+      <a href="${resolveAppPath('index.html')}">Home</a>
+      <a href="${resolveAppPath('login.html')}">Log in</a>
+      <a href="${resolveAppPath('register.html')}">Register</a>
     `;
     return;
   }
   nav.innerHTML = `
-    <a href="/campus-lost-found/dashboard.html">Dashboard</a>
-    <a href="/campus-lost-found/pages/report-lost.html">Report Lost</a>
-    <a href="/campus-lost-found/pages/report-found.html">Report Found</a>
-    <a href="/campus-lost-found/pages/lost-items.html">Lost Items</a>
-    <a href="/campus-lost-found/pages/found-items.html">Found Items</a>
-    <a href="/campus-lost-found/pages/my-reports.html">My Reports</a>
-    <a href="/campus-lost-found/pages/notifications.html">Notifications</a>
+    <a href="${resolveAppPath('dashboard.html')}">Dashboard</a>
+    <a href="${resolveAppPath('pages/report-lost.html')}">Report Lost</a>
+    <a href="${resolveAppPath('pages/report-found.html')}">Report Found</a>
+    <a href="${resolveAppPath('pages/lost-items.html')}">Lost Items</a>
+    <a href="${resolveAppPath('pages/found-items.html')}">Found Items</a>
+    <a href="${resolveAppPath('pages/my-reports.html')}">My Reports</a>
+    <a href="${resolveAppPath('pages/notifications.html')}">Notifications</a>
     <button class="btn btn-small" onclick="logoutUser()">Logout</button>
   `;
 }
@@ -76,12 +85,12 @@ function renderAdminNavigation() {
   const nav = document.querySelector('[data-admin-nav]');
   if (!nav) return;
   nav.innerHTML = `
-    <a href="/campus-lost-found/pages/admin-dashboard.html">Overview</a>
-    <a href="/campus-lost-found/pages/manage-students.html">Students</a>
-    <a href="/campus-lost-found/pages/manage-lost-items.html">Lost Items</a>
-    <a href="/campus-lost-found/pages/manage-found-items.html">Found Items</a>
-    <a href="/campus-lost-found/pages/manage-claims.html">Claims</a>
-    <a href="/campus-lost-found/pages/reports.html">Reports</a>
+    <a href="${resolveAppPath('pages/admin-dashboard.html')}">Overview</a>
+    <a href="${resolveAppPath('pages/manage-students.html')}">Students</a>
+    <a href="${resolveAppPath('pages/manage-lost-items.html')}">Lost Items</a>
+    <a href="${resolveAppPath('pages/manage-found-items.html')}">Found Items</a>
+    <a href="${resolveAppPath('pages/manage-claims.html')}">Claims</a>
+    <a href="${resolveAppPath('pages/reports.html')}">Reports</a>
     <button class="btn btn-small" onclick="logoutUser()">Logout</button>
   `;
 }
@@ -189,7 +198,7 @@ function renderItemDetailPage() {
           ${isFound ? `<div><strong>Holding location:</strong> ${item.holdingLocation}</div>` : `<div><strong>Distinguishing features:</strong> ${item.features}</div>`}
           ${isFound ? `<div><strong>Characteristics:</strong> ${item.features}</div>` : ''}
         </div>
-        ${isFound ? '<a class="btn btn-primary" href="/campus-lost-found/pages/submit-claim.html?itemId=' + item.id + '">Submit claim</a>' : ''}
+        ${isFound ? '<a class="btn btn-primary" href="' + resolveAppPath('pages/submit-claim.html?itemId=' + item.id) + '">Submit claim</a>' : ''}
       </div>
     </div>
   `;
@@ -270,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       showToast('Signed in successfully.', 'success');
       setTimeout(() => {
-        window.location.href = user.role === 'admin' ? '/campus-lost-found/pages/admin-dashboard.html' : '/campus-lost-found/dashboard.html';
+        window.location.href = resolveAppPath(user.role === 'admin' ? 'pages/admin-dashboard.html' : 'dashboard.html');
       }, 600);
     });
   }
@@ -304,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       showToast('Registration successful. Please log in.', 'success');
       setTimeout(() => {
-        window.location.href = '/campus-lost-found/login.html';
+        window.location.href = resolveAppPath('login.html');
       }, 800);
     });
   }
@@ -315,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault();
       const user = getCurrentUser();
       if (!user) {
-        window.location.href = '/campus-lost-found/login.html';
+        window.location.href = resolveAppPath('login.html');
         return;
       }
       const formData = new FormData(lostForm);
