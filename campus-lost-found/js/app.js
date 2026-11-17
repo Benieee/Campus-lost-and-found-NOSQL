@@ -37,7 +37,14 @@ function resolveAppPath(targetPath) {
 
 function getState() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-  return saved || { ...EMPTY_STATE };
+  return saved || {
+    ...EMPTY_STATE,
+    students: [],
+    lostItems: [],
+    foundItems: [],
+    claims: [],
+    notifications: []
+  };
 }
 
 function saveState(state) {

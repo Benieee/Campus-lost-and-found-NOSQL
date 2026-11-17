@@ -50,14 +50,28 @@ function requireAuth(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Please log in to continue.' });
   }
-  next();
+  return asyncRoute(async (request, response, done) => {
+    const student = await collections.students.findOne(idFilter(request.session.user.id));
+    if (!student) {
+      request.session.destroy(() => {});
+      return response.status(401).json({ error: 'Your account could not be found.' });
+    }
+    request.session.user = {
+      id: String(student.id || student._id),
+      role: student.role,
+      studentId: student.studentId
+    };
+    done();
+  })(req, res, next);
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.session.user || req.session.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Administrator access is required.' });
-  }
-  next();
+  return requireAuth(req, res, () => {
+    if (req.session.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Administrator access is required.' });
+    }
+    next();
+  });
 }
 
 function asyncRoute(handler) {
@@ -84,6 +98,7 @@ function verifyPassword(password, storedPassword) {
   }
 
   const expected = Buffer.from(hash, 'hex');
+  if (!expected.length || expected.length !== hash.length / 2 || hash.length % 2 !== 0) return false;
   const actual = crypto.scryptSync(password, salt, expected.length);
   return expected.length === actual.length && crypto.timingSafeEqual(actual, expected);
 }
@@ -98,7 +113,7 @@ app.get('/api/health', asyncRoute(async (req, res) => {
 }));
 
 app.get('/api/state', asyncRoute(async (req, res) => {
-  const user = req.session.user;
+  const sessionUser = req.session.user;
   const [lostItems, foundItems] = await Promise.all([
     collections.lostItems.find({}).toArray(),
     collections.foundItems.find({}).toArray()
@@ -111,17 +126,22 @@ app.get('/api/state', asyncRoute(async (req, res) => {
     currentUser: null
   };
 
-  if (user) {
-    const storedUser = await collections.students.findOne(idFilter(user.id));
+  if (sessionUser) {
+    const storedUser = await collections.students.findOne(idFilter(sessionUser.id));
     if (!storedUser) {
       req.session.destroy(() => {});
     } else {
       const currentUser = publicStudent(storedUser);
+      req.session.user = {
+        id: currentUser.id,
+        role: currentUser.role,
+        studentId: currentUser.studentId
+      };
       state.currentUser = currentUser;
-      state.students = user.role === 'admin'
+      state.students = currentUser.role === 'admin'
         ? (await collections.students.find({}).toArray()).map(publicStudent)
         : [currentUser];
-      const claims = user.role === 'admin'
+      const claims = currentUser.role === 'admin'
         ? await collections.claims.find({}).toArray()
         : await collections.claims.find({ studentId: currentUser.studentId }).toArray();
       state.claims = claims.map(toClientDocument);
