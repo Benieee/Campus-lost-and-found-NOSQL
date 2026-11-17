@@ -196,6 +196,23 @@ app.get('/api/students', requireAdmin, asyncRoute(async (req, res) => {
   res.json(students.map(publicStudent));
 }));
 
+app.patch('/api/students/:id', requireAdmin, asyncRoute(async (req, res) => {
+  const allowedFields = ['fullName', 'studentId', 'email', 'phone', 'role'];
+  const updates = Object.fromEntries(
+    Object.entries(req.body).filter(([field]) => allowedFields.includes(field))
+  );
+  if (!Object.keys(updates).length) {
+    return res.status(400).json({ error: 'No supported student fields were provided.' });
+  }
+  const result = await collections.students.findOneAndUpdate(
+    idFilter(req.params.id),
+    { $set: updates },
+    { returnDocument: 'after' }
+  );
+  if (!result) return res.status(404).json({ error: 'Student not found.' });
+  res.json(publicStudent(result));
+}));
+
 app.delete('/api/students/:id', requireAdmin, asyncRoute(async (req, res) => {
   const result = await collections.students.deleteOne(idFilter(req.params.id));
   if (!result.deletedCount) return res.status(404).json({ error: 'Student not found.' });

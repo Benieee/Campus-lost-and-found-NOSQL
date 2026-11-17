@@ -1,4 +1,30 @@
 const STORAGE_KEY = 'campusLostFoundAppState';
+const EMPTY_STATE = {
+  students: [],
+  lostItems: [],
+  foundItems: [],
+  claims: [],
+  notifications: [],
+  currentUserId: null
+};
+
+window.apiClient = {
+  async request(path, options = {}) {
+    const response = await fetch(`/api${path}`, {
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options
+    });
+    if (response.status === 204) return null;
+    const payload = await response.json();
+    if (!response.ok) {
+      const error = new Error(payload.error || `Request failed (${response.status}).`);
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  }
+};
 
 function resolveAppPath(targetPath) {
   const normalizedPath = String(targetPath || '').replace(/^\/+/, '');
@@ -11,15 +37,48 @@ function resolveAppPath(targetPath) {
 
 function getState() {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-  if (!saved) {
-    return window.seedMockData();
-  }
-  return saved;
+  return saved || { ...EMPTY_STATE };
 }
 
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
+
+window.appStore = {
+  getState,
+  saveState,
+  replaceCollection(name, records) {
+    const state = getState();
+    state[name] = records;
+    saveState(state);
+  },
+  upsert(name, record) {
+    const state = getState();
+    const records = state[name] || [];
+    const index = records.findIndex((entry) => entry.id === record.id);
+    if (index === -1) records.unshift(record);
+    else records[index] = record;
+    state[name] = records;
+    saveState(state);
+  },
+  remove(name, id) {
+    const state = getState();
+    state[name] = (state[name] || []).filter((entry) => entry.id !== id);
+    saveState(state);
+  }
+};
+
+window.appReady = window.apiClient.request('/state').then((serverState) => {
+  const cachedState = getState();
+  const state = {
+    ...EMPTY_STATE,
+    ...serverState,
+    notifications: cachedState.notifications || [],
+    currentUserId: serverState.currentUser ? serverState.currentUser.id : null
+  };
+  saveState(state);
+  return state;
+});
 
 function formatDate(value) {
   if (!value) return 'N/A';
@@ -50,7 +109,13 @@ function showToast(message, type = 'success') {
   }, 2600);
 }
 
-function logoutUser() {
+async function logoutUser() {
+  try {
+    await window.apiClient.request('/auth/logout', { method: 'POST' });
+  } catch (error) {
+    showToast(error.message, 'error');
+    return;
+  }
   const state = getState();
   state.currentUserId = null;
   saveState(state);
@@ -250,10 +315,12 @@ function renderAdminDashboardStats() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const hasState = !!localStorage.getItem(STORAGE_KEY);
-  if (!hasState) {
-    window.seedMockData();
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await window.appReady;
+  } catch (error) {
+    showToast(`MongoDB service unavailable: ${error.message}`, 'error');
+    return;
   }
 
   renderStudentNavigation();
@@ -268,25 +335,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const loginForm = document.getElementById('loginForm');
   if (loginForm) {
-    loginForm.addEventListener('submit', (event) => {
+    loginForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
-      const user = window.studentService.loginStudent(email, password);
-      if (!user) {
-        showToast('Invalid email or password.', 'error');
-        return;
+      try {
+        const user = await window.studentService.loginStudent(email, password);
+        showToast('Signed in successfully.', 'success');
+        setTimeout(() => {
+          window.location.href = resolveAppPath(user.role === 'admin' ? 'pages/admin-dashboard.html' : 'dashboard.html');
+        }, 600);
+      } catch (error) {
+        showToast(error.message, 'error');
       }
-      showToast('Signed in successfully.', 'success');
-      setTimeout(() => {
-        window.location.href = resolveAppPath(user.role === 'admin' ? 'pages/admin-dashboard.html' : 'dashboard.html');
-      }, 600);
     });
   }
 
   const registerForm = document.getElementById('registerForm');
   if (registerForm) {
-    registerForm.addEventListener('submit', (event) => {
+    registerForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = {
         fullName: document.getElementById('fullName').value.trim(),
@@ -304,23 +371,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Please complete all fields.', 'error');
         return;
       }
-      window.studentService.registerStudent({
-        fullName: data.fullName,
-        studentId: data.studentId,
-        email: data.email,
-        phone: data.phone,
-        password: data.password
-      });
-      showToast('Registration successful. Please log in.', 'success');
-      setTimeout(() => {
-        window.location.href = resolveAppPath('login.html');
-      }, 800);
+      try {
+        await window.studentService.registerStudent({
+          fullName: data.fullName,
+          studentId: data.studentId,
+          email: data.email,
+          phone: data.phone,
+          password: data.password
+        });
+        showToast('Registration successful. Please log in.', 'success');
+        setTimeout(() => {
+          window.location.href = resolveAppPath('login.html');
+        }, 800);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
     });
   }
 
   const lostForm = document.getElementById('lostItemForm');
   if (lostForm) {
-    lostForm.addEventListener('submit', (event) => {
+    lostForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const user = getCurrentUser();
       if (!user) {
@@ -339,22 +410,26 @@ document.addEventListener('DOMContentLoaded', () => {
         image: document.getElementById('imagePreview')?.src || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80',
         reportBy: user.id
       };
-      window.lostItemService.createLostItem(payload);
-      window.notificationService.createNotification({
-        userId: user.id,
-        message: `Your lost item report for ${payload.itemName} was submitted successfully.`,
-        type: 'report'
-      });
-      showToast('Lost item report submitted successfully.', 'success');
-      setTimeout(() => {
-        window.location.href = resolveAppPath('dashboard.html');
-      }, 700);
+      try {
+        await window.lostItemService.createLostItem(payload);
+        window.notificationService.createNotification({
+          userId: user.id,
+          message: `Your lost item report for ${payload.itemName} was submitted successfully.`,
+          type: 'report'
+        });
+        showToast('Lost item report submitted successfully.', 'success');
+        setTimeout(() => {
+          window.location.href = resolveAppPath('dashboard.html');
+        }, 700);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
     });
   }
 
   const foundForm = document.getElementById('foundItemForm');
   if (foundForm) {
-    foundForm.addEventListener('submit', (event) => {
+    foundForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(foundForm);
       const payload = {
@@ -370,45 +445,52 @@ document.addEventListener('DOMContentLoaded', () => {
         image: document.getElementById('imagePreview')?.src || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80',
         status: 'available'
       };
-      window.foundItemService.createFoundItem(payload);
-      showToast('Found item report submitted successfully.', 'success');
-      setTimeout(() => {
-        window.location.href = resolveAppPath('pages/found-items.html');
-      }, 700);
+      try {
+        await window.foundItemService.createFoundItem(payload);
+        showToast('Found item report submitted successfully.', 'success');
+        setTimeout(() => {
+          window.location.href = resolveAppPath('pages/found-items.html');
+        }, 700);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
     });
   }
 
   const claimForm = document.getElementById('claimForm');
   if (claimForm) {
-    claimForm.addEventListener('submit', (event) => {
+    claimForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const params = new URLSearchParams(window.location.search);
       const foundItemId = params.get('itemId') || document.getElementById('foundItemSelect')?.value;
       const user = getCurrentUser();
       const claim = {
         foundItemId,
-        claimantName: document.getElementById('claimantName').value.trim(),
         studentId: document.getElementById('claimStudentId').value.trim(),
         explanation: document.getElementById('claimExplanation').value.trim(),
         distinguishingFeatures: document.getElementById('claimFeatures').value.trim(),
         additionalInfo: document.getElementById('claimAdditional').value.trim()
       };
-      if (!foundItemId || !claim.claimantName || !claim.studentId || !claim.explanation) {
+      if (!foundItemId || !claim.studentId || !claim.explanation || !claim.distinguishingFeatures) {
         showToast('Please complete the required claim fields.', 'error');
         return;
       }
-      window.claimService.createClaim(claim);
-      if (user) {
-        window.notificationService.createNotification({
-          userId: user.id,
-          message: 'Your claim has been submitted and is now under review.',
-          type: 'claim'
-        });
+      try {
+        await window.claimService.createClaim(claim);
+        if (user) {
+          window.notificationService.createNotification({
+            userId: user.id,
+            message: 'Your claim has been submitted and is now under review.',
+            type: 'claim'
+          });
+        }
+        showToast('Claim submitted successfully.', 'success');
+        setTimeout(() => {
+          window.location.href = resolveAppPath('pages/my-claims.html');
+        }, 700);
+      } catch (error) {
+        showToast(error.message, 'error');
       }
-      showToast('Claim submitted successfully.', 'success');
-      setTimeout(() => {
-        window.location.href = resolveAppPath('pages/my-claims.html');
-      }, 700);
     });
   }
 

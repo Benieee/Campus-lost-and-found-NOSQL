@@ -1,63 +1,43 @@
 (function () {
-  const STORAGE_KEY = 'campusLostFoundAppState';
-
-  const getState = () => {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (!saved) {
-      return window.seedMockData();
-    }
-    return saved;
-  };
-
-  const saveState = (state) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  };
-
   window.studentService = {
     getStudents() {
-      return getState().students || [];
+      return window.appStore.getState().students || [];
     },
     getStudentById(id) {
       return this.getStudents().find((student) => student.id === id) || null;
     },
-    registerStudent(formData) {
-      const state = getState();
-      const student = {
-        id: `student-${Date.now()}`,
-        fullName: formData.fullName,
-        studentId: formData.studentId,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        role: 'student',
-        createdAt: new Date().toISOString()
-      };
-      state.students.push(student);
-      saveState(state);
+    async registerStudent(formData) {
+      const student = await window.apiClient.request('/students', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
+      window.appStore.upsert('students', student);
       return student;
     },
-    loginStudent(email, password) {
-      const student = this.getStudents().find(
-        (item) => item.email.toLowerCase() === String(email).toLowerCase() && item.password === password
-      );
-      if (!student) return null;
-      const state = getState();
+    async loginStudent(email, password) {
+      const student = await window.apiClient.request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      const state = window.appStore.getState();
       state.currentUserId = student.id;
-      saveState(state);
+      state.students = student.role === 'admin'
+        ? state.students
+        : [student];
+      window.appStore.saveState(state);
       return student;
     },
-    updateStudent(id, updates) {
-      const state = getState();
-      const index = state.students.findIndex((student) => student.id === id);
-      if (index === -1) return null;
-      state.students[index] = { ...state.students[index], ...updates };
-      saveState(state);
-      return state.students[index];
+    async updateStudent(id, updates) {
+      const student = await window.apiClient.request(`/students/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+      window.appStore.upsert('students', student);
+      return student;
     },
-    deleteStudent(id) {
-      const state = getState();
-      state.students = state.students.filter((student) => student.id !== id);
-      saveState(state);
+    async deleteStudent(id) {
+      await window.apiClient.request(`/students/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      window.appStore.remove('students', id);
       return true;
     }
   };

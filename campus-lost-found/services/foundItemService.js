@@ -1,49 +1,30 @@
 (function () {
-  const STORAGE_KEY = 'campusLostFoundAppState';
-
-  const getState = () => {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (!saved) {
-      return window.seedMockData();
-    }
-    return saved;
-  };
-
-  const saveState = (state) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  };
-
   window.foundItemService = {
     getFoundItems() {
-      return getState().foundItems || [];
+      return window.appStore.getState().foundItems || [];
     },
     getFoundItemById(id) {
       return this.getFoundItems().find((item) => item.id === id) || null;
     },
-    createFoundItem(data) {
-      const state = getState();
-      const item = {
-        id: `found-${Date.now()}`,
-        ...data,
-        status: 'available',
-        createdAt: new Date().toISOString()
-      };
-      state.foundItems.unshift(item);
-      saveState(state);
+    async createFoundItem(data) {
+      const item = await window.apiClient.request('/found-items', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      window.appStore.upsert('foundItems', item);
       return item;
     },
-    updateFoundItem(id, updates) {
-      const state = getState();
-      const index = state.foundItems.findIndex((item) => item.id === id);
-      if (index === -1) return null;
-      state.foundItems[index] = { ...state.foundItems[index], ...updates };
-      saveState(state);
-      return state.foundItems[index];
+    async updateFoundItem(id, updates) {
+      const item = await window.apiClient.request(`/found-items/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+      window.appStore.upsert('foundItems', item);
+      return item;
     },
-    deleteFoundItem(id) {
-      const state = getState();
-      state.foundItems = state.foundItems.filter((item) => item.id !== id);
-      saveState(state);
+    async deleteFoundItem(id) {
+      await window.apiClient.request(`/found-items/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      window.appStore.remove('foundItems', id);
       return true;
     }
   };
