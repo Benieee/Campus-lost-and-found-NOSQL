@@ -26,10 +26,10 @@
         document.getElementById('claimsAdminList').innerHTML = claims.map((claim) => `
           <article class="card item-card">
             <div class="item-card-body">
-              <div class="row-between"><span class="badge badge-primary">${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>
-              <h4>${claim.claimantName}</h4>
-              <p>${claim.explanation}</p>
-              <div class="action-row"><button class="btn btn-success" data-claim-status="approved" data-claim-id="${claim.id}" type="button">Approve</button><button class="btn btn-danger" data-claim-status="rejected" data-claim-id="${claim.id}" type="button">Reject</button></div>
+              <div class="row-between"><span class="badge badge-primary">${escapeHtml(claim.reference)}</span><span class="status ${escapeHtml(claim.status)}">${escapeHtml(claim.status)}</span></div>
+              <h4>${escapeHtml(claim.claimantName)}</h4>
+              <p>${escapeHtml(claim.explanation)}</p>
+              <div class="action-row"><button class="btn btn-success" data-claim-status="approved" data-claim-id="${escapeHtml(claim.id)}" type="button">Approve</button><button class="btn btn-danger" data-claim-status="rejected" data-claim-id="${escapeHtml(claim.id)}" type="button">Reject</button></div>
             </div>
           </article>
         `).join('');

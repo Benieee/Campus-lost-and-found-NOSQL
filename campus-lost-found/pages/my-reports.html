@@ -29,12 +29,12 @@
         const container = document.getElementById('reportList');
         container.innerHTML = reports.length ? reports.map((item) => `
           <article class="card item-card">
-            <img src="${item.image}" alt="${item.itemName}" />
+            <img src="${escapeHtml(safeImageUrl(item.image))}" alt="${escapeHtml(item.itemName)}" />
             <div class="item-card-body">
-              <div class="row-between"><span class="badge badge-primary">${item.category}</span><span class="status ${item.status}">${item.status}</span></div>
-              <h4>${item.itemName}</h4>
-              <p>${item.description}</p>
-              <ul><li><i class="fa-solid fa-location-dot"></i> ${item.location}</li><li><i class="fa-solid fa-calendar"></i> ${new Date(item.dateLost || item.dateFound).toLocaleDateString()}</li></ul>
+              <div class="row-between"><span class="badge badge-primary">${escapeHtml(item.category)}</span><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></div>
+              <h4>${escapeHtml(item.itemName)}</h4>
+              <p>${escapeHtml(item.description)}</p>
+              <ul><li><i class="fa-solid fa-location-dot"></i> ${escapeHtml(item.location)}</li><li><i class="fa-solid fa-calendar"></i> ${new Date(item.dateLost || item.dateFound).toLocaleDateString()}</li></ul>
             </div>
           </article>
         `).join('') : '<p class="empty-state">No reports found.</p>';

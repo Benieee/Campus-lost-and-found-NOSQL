@@ -98,6 +98,27 @@ function formatDate(value) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+function safeImageUrl(value) {
+  const image = String(value || '');
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(image)) return image;
+  try {
+    const url = new URL(image, window.location.href);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? image : '';
+  } catch (error) {
+    return '';
+  }
+}
+
 function getCurrentUser() {
   const state = getState();
   const userId = state.currentUserId;
@@ -176,9 +197,9 @@ function renderUserProfile() {
   if (!profile || !user) return;
   profile.innerHTML = `
     <div class="profile-summary">
-      <div class="avatar">${user.fullName.split(' ').map((part) => part[0]).slice(0,2).join('').toUpperCase()}</div>
+      <div class="avatar">${escapeHtml(user.fullName.split(' ').map((part) => part[0]).slice(0,2).join('').toUpperCase())}</div>
       <div>
-        <h4>${user.fullName}</h4>
+        <h4>${escapeHtml(user.fullName)}</h4>
         <p>${user.role === 'admin' ? 'Administrator' : 'Student'}</p>
       </div>
     </div>
@@ -195,9 +216,9 @@ function renderNotificationsList() {
     <div class="notification-item ${item.read ? '' : 'unread'}">
       <div class="dot"></div>
       <div>
-        <h5>${item.type.toUpperCase()}</h5>
-        <p>${item.message}</p>
-        <small>${formatDate(item.createdAt)}</small>
+        <h5>${escapeHtml(String(item.type || '').toUpperCase())}</h5>
+        <p>${escapeHtml(item.message)}</p>
+        <small>${escapeHtml(formatDate(item.createdAt))}</small>
       </div>
     </div>
   `).join('') : '<p class="empty-state">No notifications yet.</p>';
@@ -211,14 +232,14 @@ function renderPublicLatestItems() {
     const items = state.lostItems.slice(0, 3);
     lostContainer.innerHTML = items.map((item) => `
       <div class="card item-card">
-        <img src="${item.image}" alt="${item.itemName}" />
+        <img src="${escapeHtml(safeImageUrl(item.image))}" alt="${escapeHtml(item.itemName)}" />
         <div class="item-card-body">
-          <div class="badge badge-warning">${item.category}</div>
-          <h4>${item.itemName}</h4>
-          <p>${item.description}</p>
+          <div class="badge badge-warning">${escapeHtml(item.category)}</div>
+          <h4>${escapeHtml(item.itemName)}</h4>
+          <p>${escapeHtml(item.description)}</p>
           <ul>
-            <li><i class="fa-solid fa-location-dot"></i> ${item.location}</li>
-            <li><i class="fa-solid fa-calendar"></i> ${formatDate(item.dateLost)}</li>
+            <li><i class="fa-solid fa-location-dot"></i> ${escapeHtml(item.location)}</li>
+            <li><i class="fa-solid fa-calendar"></i> ${escapeHtml(formatDate(item.dateLost))}</li>
           </ul>
         </div>
       </div>
@@ -228,14 +249,14 @@ function renderPublicLatestItems() {
     const items = state.foundItems.slice(0, 3);
     foundContainer.innerHTML = items.map((item) => `
       <div class="card item-card">
-        <img src="${item.image}" alt="${item.itemName}" />
+        <img src="${escapeHtml(safeImageUrl(item.image))}" alt="${escapeHtml(item.itemName)}" />
         <div class="item-card-body">
-          <div class="badge badge-success">${item.category}</div>
-          <h4>${item.itemName}</h4>
-          <p>${item.description}</p>
+          <div class="badge badge-success">${escapeHtml(item.category)}</div>
+          <h4>${escapeHtml(item.itemName)}</h4>
+          <p>${escapeHtml(item.description)}</p>
           <ul>
-            <li><i class="fa-solid fa-location-dot"></i> ${item.location}</li>
-            <li><i class="fa-solid fa-check-circle"></i> ${item.status}</li>
+            <li><i class="fa-solid fa-location-dot"></i> ${escapeHtml(item.location)}</li>
+            <li><i class="fa-solid fa-check-circle"></i> ${escapeHtml(item.status)}</li>
           </ul>
         </div>
       </div>
@@ -256,24 +277,25 @@ function renderItemDetailPage() {
     return;
   }
   const isFound = type === 'found';
+  const itemId = encodeURIComponent(item.id);
   container.innerHTML = `
     <div class="detail-card">
-      <div class="detail-image"><img src="${item.image}" alt="${item.itemName}" /></div>
+      <div class="detail-image"><img src="${escapeHtml(safeImageUrl(item.image))}" alt="${escapeHtml(item.itemName)}" /></div>
       <div class="detail-content">
         <div class="row-between">
-          <span class="badge ${isFound ? 'badge-success' : 'badge-warning'}">${item.category}</span>
-          <span class="status ${item.status || 'pending'}">${item.status || 'pending'}</span>
+          <span class="badge ${isFound ? 'badge-success' : 'badge-warning'}">${escapeHtml(item.category)}</span>
+          <span class="status ${escapeHtml(item.status || 'pending')}">${escapeHtml(item.status || 'pending')}</span>
         </div>
-        <h2>${item.itemName}</h2>
-        <p>${item.description}</p>
+        <h2>${escapeHtml(item.itemName)}</h2>
+        <p>${escapeHtml(item.description)}</p>
         <div class="detail-grid">
-          <div><strong>Location:</strong> ${item.location}</div>
-          <div><strong>Date:</strong> ${formatDate(isFound ? item.dateFound : item.dateLost)}</div>
-          ${isFound ? `<div><strong>Condition:</strong> ${item.condition}</div>` : `<div><strong>Contact:</strong> ${item.contact}</div>`}
-          ${isFound ? `<div><strong>Holding location:</strong> ${item.holdingLocation}</div>` : `<div><strong>Distinguishing features:</strong> ${item.features}</div>`}
-          ${isFound ? `<div><strong>Characteristics:</strong> ${item.features}</div>` : ''}
+          <div><strong>Location:</strong> ${escapeHtml(item.location)}</div>
+          <div><strong>Date:</strong> ${escapeHtml(formatDate(isFound ? item.dateFound : item.dateLost))}</div>
+          ${isFound ? `<div><strong>Condition:</strong> ${escapeHtml(item.condition)}</div>` : `<div><strong>Contact:</strong> ${escapeHtml(item.contact)}</div>`}
+          ${isFound ? `<div><strong>Holding location:</strong> ${escapeHtml(item.holdingLocation)}</div>` : `<div><strong>Distinguishing features:</strong> ${escapeHtml(item.features)}</div>`}
+          ${isFound ? `<div><strong>Characteristics:</strong> ${escapeHtml(item.features)}</div>` : ''}
         </div>
-        ${isFound ? '<a class="btn btn-primary" href="' + resolveAppPath('pages/submit-claim.html?itemId=' + item.id) + '">Submit claim</a>' : ''}
+        ${isFound ? '<a class="btn btn-primary" href="' + resolveAppPath('pages/submit-claim.html?itemId=' + itemId) + '">Submit claim</a>' : ''}
       </div>
     </div>
   `;
@@ -283,7 +305,7 @@ function populateAuthUserMenu() {
   const statusEl = document.querySelector('[data-user-status]');
   const user = getCurrentUser();
   if (statusEl && user) {
-    statusEl.innerHTML = `<span>Signed in as ${user.fullName}</span>`;
+    statusEl.innerHTML = `<span>Signed in as ${escapeHtml(user.fullName)}</span>`;
   }
 }
 
@@ -343,13 +365,13 @@ function renderDashboardActivity() {
   const reportList = document.querySelector('[data-recent-reports]');
   if (reportList) {
     reportList.innerHTML = reports.slice(0, 3).map((item) => `
-      <div class="activity-item"><span>${item.itemName}</span><span class="status ${item.status}">${item.status}</span></div>
+      <div class="activity-item"><span>${escapeHtml(item.itemName)}</span><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></div>
     `).join('') || '<p class="empty-state">No reports yet.</p>';
   }
   const claimList = document.querySelector('[data-recent-claims]');
   if (claimList) {
     claimList.innerHTML = claims.slice(0, 3).map((claim) => `
-      <div class="activity-item"><span>${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>
+      <div class="activity-item"><span>${escapeHtml(claim.reference)}</span><span class="status ${escapeHtml(claim.status)}">${escapeHtml(claim.status)}</span></div>
     `).join('') || '<p class="empty-state">No claims yet.</p>';
   }
 }
@@ -361,7 +383,7 @@ function renderAdminRecentActivity() {
     reports.innerHTML = [...state.lostItems]
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 3)
-      .map((item) => `<div class="activity-item"><span>${item.itemName}</span><span class="status ${item.status}">${item.status}</span></div>`)
+      .map((item) => `<div class="activity-item"><span>${escapeHtml(item.itemName)}</span><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></div>`)
       .join('') || '<p class="empty-state">No reports yet.</p>';
   }
   const claims = document.querySelector('[data-admin-recent-claims]');
@@ -369,7 +391,7 @@ function renderAdminRecentActivity() {
     claims.innerHTML = [...state.claims]
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 3)
-      .map((claim) => `<div class="activity-item"><span>${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>`)
+      .map((claim) => `<div class="activity-item"><span>${escapeHtml(claim.reference)}</span><span class="status ${escapeHtml(claim.status)}">${escapeHtml(claim.status)}</span></div>`)
       .join('') || '<p class="empty-state">No claims yet.</p>';
   }
 }

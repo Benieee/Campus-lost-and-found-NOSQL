@@ -12,7 +12,7 @@ mongodb://localhost:27017/CampusLostFound
 
 It uses the existing `students`, `lostItems`, `foundItems`, and `claims` collections. At startup it verifies that all four collections exist and exits with an error if one is missing. It does not seed demo data or create collections.
 
-New registrations are stored with a scrypt-hashed password. Legacy plain-text passwords already in the `students` collection are accepted for compatibility; migrate those records before production use.
+New registrations are stored with a scrypt-hashed password. Legacy plain-text passwords already in the `students` collection are accepted once and upgraded to hashes after successful login.
 
 Notifications remain browser-local because the existing database schema does not include a notifications collection.
 

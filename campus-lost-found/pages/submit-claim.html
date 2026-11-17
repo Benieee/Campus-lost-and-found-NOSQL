@@ -47,7 +47,7 @@
         const state = window.appStore.getState();
         const select = document.getElementById('foundItemSelect');
         if (select) {
-          select.innerHTML = (state.foundItems || []).map((item) => `<option value="${item.id}" ${item.id === itemId ? 'selected' : ''}>${item.itemName}</option>`).join('');
+          select.innerHTML = (state.foundItems || []).map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === itemId ? 'selected' : ''}>${escapeHtml(item.itemName)}</option>`).join('');
         }
         const user = window.appStore.getState().students.find((student) => student.id === window.appStore.getState().currentUserId);
         if (user) {

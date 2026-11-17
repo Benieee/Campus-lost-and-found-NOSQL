@@ -43,8 +43,8 @@
         const populateSelect = () => {
           const categories = [...new Set(items.map((i) => i.category))];
           const locations = [...new Set(items.map((i) => i.location))];
-          categorySelect.innerHTML = '<option value="">All categories</option>' + categories.map((c) => `<option value="${c}">${c}</option>`).join('');
-          locationSelect.innerHTML = '<option value="">All locations</option>' + locations.map((l) => `<option value="${l}">${l}</option>`).join('');
+          categorySelect.innerHTML = '<option value="">All categories</option>' + categories.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+          locationSelect.innerHTML = '<option value="">All locations</option>' + locations.map((l) => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
         };
         const render = () => {
           const search = document.getElementById('foundSearch').value.toLowerCase();
@@ -62,16 +62,16 @@
           }
           container.innerHTML = filtered.map((item) => `
             <article class="card item-card">
-              <img src="${item.image}" alt="${item.itemName}" />
+              <img src="${escapeHtml(safeImageUrl(item.image))}" alt="${escapeHtml(item.itemName)}" />
               <div class="item-card-body">
-                <div class="row-between"><span class="badge badge-success">${item.category}</span><span class="status ${item.status}">${item.status}</span></div>
-                <h4>${item.itemName}</h4>
-                <p>${item.description}</p>
+                <div class="row-between"><span class="badge badge-success">${escapeHtml(item.category)}</span><span class="status ${escapeHtml(item.status)}">${escapeHtml(item.status)}</span></div>
+                <h4>${escapeHtml(item.itemName)}</h4>
+                <p>${escapeHtml(item.description)}</p>
                 <ul>
-                  <li><i class="fa-solid fa-location-dot"></i> ${item.location}</li>
+                  <li><i class="fa-solid fa-location-dot"></i> ${escapeHtml(item.location)}</li>
                   <li><i class="fa-solid fa-calendar"></i> ${new Date(item.dateFound).toLocaleDateString()}</li>
                 </ul>
-                <div class="action-row"><a href="./item-details.html?id=${item.id}&type=found" class="btn btn-secondary">View details</a><a href="./submit-claim.html?itemId=${item.id}" class="btn btn-primary">Claim item</a></div>
+                <div class="action-row"><a href="./item-details.html?id=${encodeURIComponent(item.id)}&type=found" class="btn btn-secondary">View details</a><a href="./submit-claim.html?itemId=${encodeURIComponent(item.id)}" class="btn btn-primary">Claim item</a></div>
               </div>
             </article>
           `).join('');

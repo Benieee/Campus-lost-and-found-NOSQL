@@ -25,10 +25,10 @@
         const students = window.appStore.getState().students || [];
         document.getElementById('studentTable').innerHTML = '<table style="width:100%; border-collapse: collapse;">' + students.map((student) => `
           <tr style="border-bottom:1px solid #e5e7eb;">
-            <td style="padding:12px;">${student.fullName}</td>
-            <td style="padding:12px;">${student.studentId}</td>
-            <td style="padding:12px;">${student.email}</td>
-            <td style="padding:12px;">${student.phone}</td>
+            <td style="padding:12px;">${escapeHtml(student.fullName)}</td>
+            <td style="padding:12px;">${escapeHtml(student.studentId)}</td>
+            <td style="padding:12px;">${escapeHtml(student.email)}</td>
+            <td style="padding:12px;">${escapeHtml(student.phone)}</td>
           </tr>`).join('') + '</table>';
         } catch (error) {
           showToast(error.message, 'error');

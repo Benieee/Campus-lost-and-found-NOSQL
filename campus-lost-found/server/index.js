@@ -10,6 +10,9 @@ const PORT = Number(process.env.PORT || 3000);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/CampusLostFound';
 const DATABASE_NAME = new URL(MONGODB_URI).pathname.slice(1) || 'CampusLostFound';
 const COLLECTION_NAMES = ['students', 'lostItems', 'foundItems', 'claims'];
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production.');
+}
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const client = new MongoClient(MONGODB_URI);
 const app = express();
@@ -165,12 +168,19 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
 
+  if (!student.password.startsWith('scrypt$')) {
+    await collections.students.updateOne(
+      idFilter(String(student.id || student._id)),
+      { $set: { password: hashPassword(password) } }
+    );
+  }
+
   const safeStudent = publicStudent(student);
-  req.session.regenerate((error) => {
-    if (error) return res.status(500).json({ error: 'Could not start your session.' });
-    req.session.user = { id: safeStudent.id, role: safeStudent.role, studentId: safeStudent.studentId };
-    res.json(safeStudent);
+  await new Promise((resolve, reject) => {
+    req.session.regenerate((error) => error ? reject(error) : resolve());
   });
+  req.session.user = { id: safeStudent.id, role: safeStudent.role, studentId: safeStudent.studentId };
+  res.json(safeStudent);
 }));
 
 app.post('/api/auth/logout', (req, res, next) => {

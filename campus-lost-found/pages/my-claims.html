@@ -30,10 +30,10 @@
         container.innerHTML = claims.length ? claims.map((claim) => `
           <article class="card item-card">
             <div class="item-card-body">
-              <div class="row-between"><span class="badge badge-primary">Claim</span><span class="status ${claim.status}">${claim.status}</span></div>
-              <h4>${claim.reference}</h4>
-              <p>${claim.explanation}</p>
-              <ul><li><i class="fa-solid fa-user"></i> ${claim.claimantName}</li><li><i class="fa-solid fa-calendar"></i> ${new Date(claim.createdAt).toLocaleDateString()}</li></ul>
+              <div class="row-between"><span class="badge badge-primary">Claim</span><span class="status ${escapeHtml(claim.status)}">${escapeHtml(claim.status)}</span></div>
+              <h4>${escapeHtml(claim.reference)}</h4>
+              <p>${escapeHtml(claim.explanation)}</p>
+              <ul><li><i class="fa-solid fa-user"></i> ${escapeHtml(claim.claimantName)}</li><li><i class="fa-solid fa-calendar"></i> ${new Date(claim.createdAt).toLocaleDateString()}</li></ul>
             </div>
           </article>
         `).join('') : '<p class="empty-state">No claims submitted yet.</p>';
