@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       showToast('Lost item report submitted successfully.', 'success');
       setTimeout(() => {
-        window.location.href = '/campus-lost-found/dashboard.html';
+        window.location.href = resolveAppPath('dashboard.html');
       }, 700);
     });
   }
@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.foundItemService.createFoundItem(payload);
       showToast('Found item report submitted successfully.', 'success');
       setTimeout(() => {
-        window.location.href = '/campus-lost-found/pages/found-items.html';
+        window.location.href = resolveAppPath('pages/found-items.html');
       }, 700);
     });
   }
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       showToast('Claim submitted successfully.', 'success');
       setTimeout(() => {
-        window.location.href = '/campus-lost-found/pages/my-claims.html';
+        window.location.href = resolveAppPath('pages/my-claims.html');
       }, 700);
     });
   }
