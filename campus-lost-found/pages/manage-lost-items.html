@@ -20,8 +20,10 @@
     <script src="../services/notificationService.js"></script>
     <script src="../js/app.js"></script>
     <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const items = JSON.parse(localStorage.getItem('campusLostFoundAppState') || '{}').lostItems || [];
+      document.addEventListener('DOMContentLoaded', async function () {
+        try {
+        await window.appReady;
+        const items = window.appStore.getState().lostItems || [];
         document.getElementById('lostAdminList').innerHTML = items.map((item) => `
           <article class="card item-card">
             <img src="${item.image}" alt="${item.itemName}" />
@@ -29,10 +31,26 @@
               <div class="row-between"><span class="badge badge-warning">${item.category}</span><span class="status ${item.status}">${item.status}</span></div>
               <h4>${item.itemName}</h4>
               <p>${item.description}</p>
-              <div class="action-row"><button class="btn btn-secondary" type="button">Edit</button><button class="btn btn-danger" type="button">Delete</button></div>
+              <div class="action-row"><button class="btn btn-danger" data-delete-lost-id="${item.id}" type="button">Delete</button></div>
             </div>
           </article>
         `).join('');
+        document.getElementById('lostAdminList').addEventListener('click', async (event) => {
+          const button = event.target.closest('[data-delete-lost-id]');
+          if (!button || !window.confirm('Delete this lost item report?')) return;
+          button.disabled = true;
+          try {
+            await window.lostItemService.deleteLostItem(button.dataset.deleteLostId);
+            button.closest('.item-card').remove();
+            showToast('Lost item report deleted.', 'success');
+          } catch (error) {
+            button.disabled = false;
+            showToast(error.message, 'error');
+          }
+        });
+        } catch (error) {
+          showToast(error.message, 'error');
+        }
       });
     </script>
   </body>

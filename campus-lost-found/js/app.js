@@ -283,9 +283,11 @@ function renderDashboardStats() {
   if (!user) return;
 
   const myLost = state.lostItems.filter((item) => item.reportBy === user.id).length;
-  const myFound = state.foundItems.filter((item) => item.contact && item.contact.includes(user.email)).length;
+  const myFound = state.foundItems.filter((item) =>
+    item.reportBy === user.id || (item.contact && item.contact.includes(user.email))
+  ).length;
   const myClaims = state.claims.filter((claim) => claim.studentId === user.studentId).length;
-  const returnedItems = state.lostItems.filter((item) => item.status === 'resolved').length;
+  const returnedItems = state.lostItems.filter((item) => item.reportBy === user.id && item.status === 'resolved').length;
 
   const mappings = [
     ['myLostReports', myLost],
@@ -315,6 +317,66 @@ function renderAdminDashboardStats() {
   });
 }
 
+function renderDashboardActivity() {
+  const state = getState();
+  const user = getCurrentUser();
+  if (!user) return;
+
+  const reports = [
+    ...state.lostItems.filter((item) => item.reportBy === user.id),
+    ...state.foundItems.filter((item) => item.reportBy === user.id)
+  ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const claims = state.claims
+    .filter((claim) => claim.studentId === user.studentId)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  const reportList = document.querySelector('[data-recent-reports]');
+  if (reportList) {
+    reportList.innerHTML = reports.slice(0, 3).map((item) => `
+      <div class="activity-item"><span>${item.itemName}</span><span class="status ${item.status}">${item.status}</span></div>
+    `).join('') || '<p class="empty-state">No reports yet.</p>';
+  }
+  const claimList = document.querySelector('[data-recent-claims]');
+  if (claimList) {
+    claimList.innerHTML = claims.slice(0, 3).map((claim) => `
+      <div class="activity-item"><span>${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>
+    `).join('') || '<p class="empty-state">No claims yet.</p>';
+  }
+}
+
+function renderAdminRecentActivity() {
+  const state = getState();
+  const reports = document.querySelector('[data-admin-recent-reports]');
+  if (reports) {
+    reports.innerHTML = [...state.lostItems]
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, 3)
+      .map((item) => `<div class="activity-item"><span>${item.itemName}</span><span class="status ${item.status}">${item.status}</span></div>`)
+      .join('') || '<p class="empty-state">No reports yet.</p>';
+  }
+  const claims = document.querySelector('[data-admin-recent-claims]');
+  if (claims) {
+    claims.innerHTML = [...state.claims]
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, 3)
+      .map((claim) => `<div class="activity-item"><span>${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>`)
+      .join('') || '<p class="empty-state">No claims yet.</p>';
+  }
+}
+
+function renderAnalytics() {
+  const state = getState();
+  const totalItems = document.querySelector('[data-total-items]');
+  if (!totalItems) return;
+  const lostFound = document.querySelector('[data-lost-found]');
+  const returned = document.querySelector('[data-returned-items]');
+  const outstanding = document.querySelector('[data-outstanding-claims]');
+  totalItems.textContent = state.lostItems.length + state.foundItems.length;
+  if (lostFound) lostFound.textContent = `${state.lostItems.length} / ${state.foundItems.length}`;
+  if (returned) returned.textContent = state.lostItems.filter((item) => item.status === 'resolved').length;
+  if (outstanding) outstanding.textContent = state.claims.filter((claim) => ['pending', 'under_review'].includes(claim.status)).length;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await window.appReady;
@@ -331,6 +393,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderItemDetailPage();
   renderDashboardStats();
   renderAdminDashboardStats();
+  renderDashboardActivity();
+  renderAdminRecentActivity();
+  renderAnalytics();
   populateAuthUserMenu();
 
   const loginForm = document.getElementById('loginForm');
@@ -532,6 +597,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         previewImage.src = e.target.result;
       };
       reader.readAsDataURL(file);
+    });
+  }
+
+  const exportButton = document.querySelector('[data-export-csv]');
+  if (exportButton) {
+    exportButton.addEventListener('click', () => {
+      const state = getState();
+      const rows = [
+        ['type', 'itemName', 'category', 'status', 'createdAt'],
+        ...state.lostItems.map((item) => ['lost', item.itemName, item.category, item.status, item.createdAt]),
+        ...state.foundItems.map((item) => ['found', item.itemName, item.category, item.status, item.createdAt])
+      ];
+      const csv = rows.map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      link.download = 'campus-lost-found-report.csv';
+      link.click();
+      URL.revokeObjectURL(link.href);
     });
   }
 });
