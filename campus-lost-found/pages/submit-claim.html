@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Submit Claim | Bugema Lost & Found</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body>
+    <header class="topbar"><div class="container"><nav><div class="brand"><div class="brand-mark">B</div><span>Bugema Lost & Found</span></div><div class="nav-links" data-role-nav></div></nav></div></header>
+    <main class="container section">
+      <div class="form-card">
+        <h2>Submit ownership claim</h2>
+        <p class="muted">A claim is reviewed by administrators and will not be automatically approved.</p>
+        <form id="claimForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Select found item</label>
+              <select id="foundItemSelect" name="foundItemId"></select>
+            </div>
+            <div class="form-group"><label>Student name</label><input id="claimantName" required /></div>
+            <div class="form-group"><label>Student ID</label><input id="claimStudentId" required /></div>
+            <div class="form-group full"><label>Explanation of ownership</label><textarea id="claimExplanation" required></textarea></div>
+            <div class="form-group full"><label>Distinguishing features known by claimant</label><textarea id="claimFeatures" required></textarea></div>
+            <div class="form-group full"><label>Additional supporting information</label><textarea id="claimAdditional"></textarea></div>
+          </div>
+          <div class="form-actions"><a href="./found-items.html" class="btn btn-secondary">Cancel</a><button class="btn btn-primary" type="submit">Submit claim</button></div>
+        </form>
+      </div>
+    </main>
+    <script src="../data/mockData.js"></script>
+    <script src="../services/studentService.js"></script>
+    <script src="../services/lostItemService.js"></script>
+    <script src="../services/foundItemService.js"></script>
+    <script src="../services/claimService.js"></script>
+    <script src="../services/notificationService.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const params = new URLSearchParams(window.location.search);
+        const itemId = params.get('itemId');
+        const state = JSON.parse(localStorage.getItem('campusLostFoundAppState') || '{}');
+        const select = document.getElementById('foundItemSelect');
+        if (select) {
+          select.innerHTML = (state.foundItems || []).map((item) => `<option value="${item.id}" ${item.id === itemId ? 'selected' : ''}>${item.itemName}</option>`).join('');
+        }
+      });
+    </script>
+  </body>
+</html>

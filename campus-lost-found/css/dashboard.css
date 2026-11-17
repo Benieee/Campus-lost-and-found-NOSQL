@@ -1,0 +1,5 @@
+.dashboard-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; }
+.summary-panel { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 20px; }
+.list-stack { display: grid; gap: 14px; }
+.activity-item { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }

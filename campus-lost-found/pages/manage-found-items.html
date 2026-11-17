@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Found Items | Bugema Lost & Found</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body>
+    <div class="page-shell"><aside class="sidebar"><div class="brand" style="padding-left: 8px;"><div class="brand-mark">B</div><span>Bugema</span></div><div class="nav-links" data-admin-nav></div></aside><main class="content"><div class="section-head"><h2>Found item management</h2><p>Review and process found belongings.</p></div><div id="foundAdminList" class="item-grid"></div></main></div>
+    <script src="../data/mockData.js"></script>
+    <script src="../services/studentService.js"></script>
+    <script src="../services/lostItemService.js"></script>
+    <script src="../services/foundItemService.js"></script>
+    <script src="../services/claimService.js"></script>
+    <script src="../services/notificationService.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const items = JSON.parse(localStorage.getItem('campusLostFoundAppState') || '{}').foundItems || [];
+        document.getElementById('foundAdminList').innerHTML = items.map((item) => `
+          <article class="card item-card">
+            <img src="${item.image}" alt="${item.itemName}" />
+            <div class="item-card-body">
+              <div class="row-between"><span class="badge badge-success">${item.category}</span><span class="status ${item.status}">${item.status}</span></div>
+              <h4>${item.itemName}</h4>
+              <p>${item.description}</p>
+              <div class="action-row"><button class="btn btn-secondary" type="button">Edit</button><button class="btn btn-danger" type="button">Delete</button></div>
+            </div>
+          </article>
+        `).join('');
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Claims | Bugema Lost & Found</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="../css/style.css" />
+  </head>
+  <body>
+    <div class="page-shell"><aside class="sidebar"><div class="brand" style="padding-left: 8px;"><div class="brand-mark">B</div><span>Bugema</span></div><div class="nav-links" data-admin-nav></div></aside><main class="content"><div class="section-head"><h2>Claim management</h2><p>Review all ownership claims and update their decisions.</p></div><div id="claimsAdminList" class="item-grid"></div></main></div>
+    <script src="../data/mockData.js"></script>
+    <script src="../services/studentService.js"></script>
+    <script src="../services/lostItemService.js"></script>
+    <script src="../services/foundItemService.js"></script>
+    <script src="../services/claimService.js"></script>
+    <script src="../services/notificationService.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const claims = JSON.parse(localStorage.getItem('campusLostFoundAppState') || '{}').claims || [];
+        document.getElementById('claimsAdminList').innerHTML = claims.map((claim) => `
+          <article class="card item-card">
+            <div class="item-card-body">
+              <div class="row-between"><span class="badge badge-primary">${claim.reference}</span><span class="status ${claim.status}">${claim.status}</span></div>
+              <h4>${claim.claimantName}</h4>
+              <p>${claim.explanation}</p>
+              <div class="action-row"><button class="btn btn-success" type="button">Approve</button><button class="btn btn-danger" type="button">Reject</button></div>
+            </div>
+          </article>
+        `).join('');
+      });
+    </script>
+  </body>
+</html>

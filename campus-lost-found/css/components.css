@@ -1,0 +1,4 @@
+.profile-summary { display: flex; align-items: center; gap: 14px; }
+.avatar {
+  width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #dfeaff, #a9c7ff); color: var(--navy); font-weight: 700;
+}

@@ -1,0 +1,11 @@
+@media (max-width: 980px) {
+  .page-shell { grid-template-columns: 1fr; }
+  .sidebar { min-height: unset; position: relative; }
+  .item-grid, .features, .steps, .stats-grid, .detail-card, .footer-grid, .hero-grid, .form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .nav-links { gap: 12px; }
+  .topbar nav { flex-direction: column; }
+  .hero { padding-top: 60px; }
+  .auth-card, .form-card { padding: 20px; }
+}

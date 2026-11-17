@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Dashboard | Bugema Lost & Found</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/dashboard.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <div class="brand" style="padding-left: 8px;">
+          <div class="brand-mark">B</div>
+          <span>Bugema</span>
+        </div>
+        <div class="nav-links" data-role-nav></div>
+      </aside>
+      <main class="content">
+        <div class="row-between" style="margin-bottom: 28px;">
+          <div>
+            <h1 style="margin: 0 0 8px;">Student dashboard</h1>
+            <p class="muted" data-user-status></p>
+          </div>
+          <a href="./pages/report-lost.html" class="btn btn-primary">Report a lost item</a>
+        </div>
+
+        <section class="stats-grid" style="margin-bottom: 24px;">
+          <div class="card stat-card">
+            <p>My lost reports</p>
+            <h3 id="myLostReports">0</h3>
+          </div>
+          <div class="card stat-card">
+            <p>My found reports</p>
+            <h3 id="myFoundReports">0</h3>
+          </div>
+          <div class="card stat-card">
+            <p>My active claims</p>
+            <h3 id="myActiveClaims">0</h3>
+          </div>
+          <div class="card stat-card">
+            <p>Successfully returned</p>
+            <h3 id="returnedItems">0</h3>
+          </div>
+        </section>
+
+        <section class="dashboard-grid">
+          <div class="summary-panel">
+            <h3>Recent reports</h3>
+            <div class="list-stack">
+              <div class="activity-item"><span>Black Samsung Galaxy A54</span><span class="status pending">pending</span></div>
+              <div class="activity-item"><span>University ID Card</span><span class="status under_review">under review</span></div>
+              <div class="activity-item"><span>Navy Backpack</span><span class="status resolved">resolved</span></div>
+            </div>
+          </div>
+          <div class="summary-panel">
+            <h3>Claim updates</h3>
+            <div class="list-stack">
+              <div class="activity-item"><span>Charge claim filed</span><span>Today</span></div>
+              <div class="activity-item"><span>Claim approved</span><span>3 days ago</span></div>
+              <div class="activity-item"><span>Return confirmation issued</span><span>Last week</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Quick actions</h2>
+          </div>
+          <div class="row" style="flex-wrap: wrap;">
+            <a class="btn btn-primary" href="./pages/report-lost.html">Report lost item</a>
+            <a class="btn btn-secondary" href="./pages/report-found.html">Report found item</a>
+            <a class="btn btn-secondary" href="./pages/found-items.html">Browse found items</a>
+            <a class="btn btn-secondary" href="./pages/my-claims.html">My claims</a>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="summary-panel">
+            <h3>Notifications</h3>
+            <div data-notifications-list></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./data/mockData.js"></script>
+    <script src="./services/studentService.js"></script>
+    <script src="./services/lostItemService.js"></script>
+    <script src="./services/foundItemService.js"></script>
+    <script src="./services/claimService.js"></script>
+    <script src="./services/notificationService.js"></script>
+    <script src="./js/app.js"></script>
+  </body>
+</html>
