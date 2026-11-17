@@ -6,7 +6,7 @@ const express = require('express');
 const session = require('express-session');
 const { MongoClient, ObjectId } = require('mongodb');
 
-const PORT = Number(process.env.PORT || 8000);
+const PORT = Number(process.env.PORT || 3000);
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/CampusLostFound';
 const DATABASE_NAME = new URL(MONGODB_URI).pathname.slice(1) || 'CampusLostFound';
 const COLLECTION_NAMES = ['students', 'lostItems', 'foundItems', 'claims'];
@@ -166,8 +166,11 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
   }
 
   const safeStudent = publicStudent(student);
-  req.session.user = { id: safeStudent.id, role: safeStudent.role, studentId: safeStudent.studentId };
-  res.json(safeStudent);
+  req.session.regenerate((error) => {
+    if (error) return res.status(500).json({ error: 'Could not start your session.' });
+    req.session.user = { id: safeStudent.id, role: safeStudent.role, studentId: safeStudent.studentId };
+    res.json(safeStudent);
+  });
 }));
 
 app.post('/api/auth/logout', (req, res, next) => {
@@ -379,7 +382,7 @@ async function start() {
   }
   collections = Object.fromEntries(COLLECTION_NAMES.map((name) => [name, database.collection(name)]));
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '127.0.0.1', () => {
     console.log(`Campus Lost & Found is running at http://localhost:${PORT}`);
     console.log(`Connected to MongoDB database "${DATABASE_NAME}".`);
   });

@@ -11,12 +11,15 @@ const EMPTY_STATE = {
 window.apiClient = {
   async request(path, options = {}) {
     const response = await fetch(`/api${path}`, {
+      ...options,
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-      ...options
+      headers: { 'Content-Type': 'application/json', ...options.headers }
     });
     if (response.status === 204) return null;
-    const payload = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+      ? await response.json()
+      : { error: await response.text() || `Request failed (${response.status}).` };
     if (!response.ok) {
       const error = new Error(payload.error || `Request failed (${response.status}).`);
       error.status = response.status;

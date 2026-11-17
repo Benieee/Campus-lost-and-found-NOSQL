@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Bugema University lost and found application",
+  "engines": {
+    "node": ">=18"
+  },
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"
