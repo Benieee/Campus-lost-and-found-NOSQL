@@ -120,6 +120,8 @@ textarea {
    FULL-SCREEN FROSTED SIDEBAR WORKSPACE (Image 1 Aesthetic)
    ========================================================= */
 .workspace-shell {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
@@ -274,7 +276,7 @@ textarea {
   min-width: 0;
 }
 
-.topbar-left > div {
+.topbar-left>div {
   min-width: 0;
 }
 
@@ -878,6 +880,8 @@ textarea {
 
 /* Hero Banner on HomePage */
 .hero {
+  position: relative;
+  overflow: hidden;
   margin: 18px clamp(18px, 2.5vw, 34px) 6px;
   border-radius: 28px;
   background:
@@ -890,6 +894,8 @@ textarea {
 }
 
 .hero .container {
+  position: relative;
+  z-index: 2;
   padding-inline: 0;
 }
 
@@ -1947,11 +1953,11 @@ tr:last-child td {
     gap: 12px;
   }
 
-  .page-header > .row-gap {
+  .page-header>.row-gap {
     width: 100%;
   }
 
-  .page-header > .row-gap .btn {
+  .page-header>.row-gap .btn {
     flex: 1 1 auto;
   }
 
@@ -2111,7 +2117,7 @@ tr:last-child td {
     flex-wrap: nowrap;
   }
 
-  .ai-prompt-footer > .row-gap {
+  .ai-prompt-footer>.row-gap {
     flex: 1;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -2119,7 +2125,7 @@ tr:last-child td {
     scrollbar-width: none;
   }
 
-  .ai-prompt-footer > .row-gap::-webkit-scrollbar {
+  .ai-prompt-footer>.row-gap::-webkit-scrollbar {
     display: none;
   }
 
@@ -2278,15 +2284,18 @@ tr:last-child td {
   0% {
     transform: rotate(0deg) scale(1);
   }
+
   50% {
     transform: rotate(180deg) scale(1.06);
   }
+
   100% {
     transform: rotate(360deg) scale(1);
   }
 }
 
 @keyframes orbPulse {
+
   0%,
   100% {
     box-shadow:
@@ -2294,6 +2303,7 @@ tr:last-child td {
       0 0 58px rgba(245, 183, 0, 0.28),
       inset 0 0 22px rgba(255, 255, 255, 0.35);
   }
+
   50% {
     box-shadow:
       0 0 40px rgba(37, 123, 230, 0.85),
@@ -2338,11 +2348,13 @@ tr:last-child td {
 }
 
 @keyframes botBlink {
+
   0%,
   92%,
   100% {
     transform: scaleY(1);
   }
+
   96% {
     transform: scaleY(0.12);
   }
@@ -2550,6 +2562,7 @@ tr:last-child td {
     right: 14px;
     bottom: 76px;
   }
+
   .bu-ai-orb-md {
     width: 60px;
     height: 60px;
@@ -2559,23 +2572,294 @@ tr:last-child td {
 @media (prefers-reduced-motion: reduce) {
   .bu-ai-orb,
   .bu-ai-orb-core,
-  .bot-eye {
+  .bot-eye,
+  .search-trail-path,
+  .search-trail-path-alt,
+  .radar-ring,
+  .backdrop-seeker,
+  .floating-lost-icon,
+  .hero-footpath,
+  .hero-searcher-group,
+  .hero-beam-sweep,
+  .hero-curiosity-mark {
     animation: none !important;
+  }
+}
+
+/* =========================================================
+   LOST & FOUND CAMPUS SEARCH BACKGROUND ANIMATIONS
+   ========================================================= */
+.campus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.workspace-main {
+  position: relative;
+  z-index: 1;
+}
+
+.backdrop-trails-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+}
+
+@keyframes dashTravel {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -144;
+  }
+}
+
+.search-trail-path {
+  animation: dashTravel 12s linear infinite;
+}
+
+.search-trail-path-alt {
+  animation: dashTravel 16s linear infinite reverse;
+}
+
+@keyframes radarRipple {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+.radar-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: radarRipple 4.2s ease-out infinite;
+}
+
+.radar-ring.r2 {
+  animation-delay: 2.1s;
+}
+
+/* Gliding magnifying-glass seeker moving across campus */
+@keyframes seekerPatrol {
+  0% {
+    transform: translate3d(12vw, 70vh, 0) rotate(-10deg);
+  }
+  25% {
+    transform: translate3d(38vw, 30vh, 0) rotate(8deg);
+  }
+  50% {
+    transform: translate3d(72vw, 56vh, 0) rotate(-6deg);
+  }
+  75% {
+    transform: translate3d(52vw, 22vh, 0) rotate(12deg);
+  }
+  100% {
+    transform: translate3d(12vw, 70vh, 0) rotate(-10deg);
+  }
+}
+
+.backdrop-seeker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 56px;
+  animation: seekerPatrol 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+.seeker-beam {
+  position: absolute;
+  top: -72px;
+  left: -72px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(245, 183, 0, 0.24) 0%,
+    rgba(37, 123, 230, 0.14) 45%,
+    transparent 70%
+  );
+}
+
+.seeker-badge {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2px solid rgba(14, 77, 156, 0.28);
+  color: var(--bu-blue);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 24px rgba(14, 77, 156, 0.14);
+}
+
+/* Gently floating lost belongings that pulse softly as if waiting to be found */
+@keyframes floatLostItem {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate3d(0, -16px, 0) rotate(6deg);
+    opacity: 0.54;
+    box-shadow: 0 0 24px rgba(245, 183, 0, 0.34);
+  }
+}
+
+.floating-lost-icon {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(14, 77, 156, 0.16);
+  color: var(--bu-blue);
+  display: grid;
+  place-items: center;
+  animation: floatLostItem 7.5s ease-in-out infinite;
+}
+
+.floating-lost-icon.icon-1 {
+  top: 16%;
+  left: 22%;
+  color: #b45309;
+  animation-delay: 0s;
+}
+.floating-lost-icon.icon-2 {
+  top: 28%;
+  right: 12%;
+  color: var(--bu-blue);
+  animation-delay: 1.4s;
+}
+.floating-lost-icon.icon-3 {
+  bottom: 24%;
+  left: 34%;
+  color: var(--bu-navy);
+  animation-delay: 2.6s;
+}
+.floating-lost-icon.icon-4 {
+  top: 62%;
+  right: 26%;
+  color: var(--bu-red);
+  animation-delay: 3.8s;
+}
+.floating-lost-icon.icon-5 {
+  top: 44%;
+  left: 16%;
+  color: var(--bu-emerald);
+  animation-delay: 1.9s;
+}
+.floating-lost-icon.icon-6 {
+  bottom: 14%;
+  right: 10%;
+  color: var(--bu-gold-dark);
+  animation-delay: 4.5s;
+}
+.floating-lost-icon.icon-7 {
+  top: 14%;
+  right: 34%;
+  color: var(--bu-red);
+  animation-delay: 2.9s;
+}
+
+/* Hero Searcher Spotlight Animation */
+.hero-search-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.hero-scene-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hero-footpath {
+  animation: dashTravel 10s linear infinite;
+}
+
+@keyframes searcherWalk {
+  0%,
+  100% {
+    transform: translate3d(0px, 0px, 0);
+  }
+  50% {
+    transform: translate3d(68px, -10px, 0);
+  }
+}
+
+@keyframes beamSweep {
+  0%,
+  100% {
+    transform: rotate(-9deg);
+  }
+  50% {
+    transform: rotate(11deg);
+  }
+}
+
+@keyframes curiosityBob {
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(-7px);
+    opacity: 1;
+  }
+}
+
+.hero-searcher-group {
+  animation: searcherWalk 9s ease-in-out infinite;
+}
+
+.hero-beam-sweep {
+  transform-origin: 150px 245px;
+  animation: beamSweep 4.8s ease-in-out infinite;
+}
+
+.hero-curiosity-mark {
+  animation: curiosityBob 2.6s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+  .floating-lost-icon.icon-3,
+  .floating-lost-icon.icon-5,
+  .floating-lost-icon.icon-7 {
+    display: none;
+  }
+  .hero-search-scene {
+    opacity: 0.45;
   }
 }
 
 .bu-ai-orb-core {
   position: absolute;
   inset: -16%;
-  background: conic-gradient(
-    from 0deg,
-    #0e4d9c 0deg,
-    #257be6 75deg,
-    #f5b700 145deg,
-    #d92b2b 215deg,
-    #1a64c2 290deg,
-    #0e4d9c 360deg
-  );
+  background: conic-gradient(from 0deg,
+      #0e4d9c 0deg,
+      #257be6 75deg,
+      #f5b700 145deg,
+      #d92b2b 215deg,
+      #1a64c2 290deg,
+      #0e4d9c 360deg);
   filter: blur(10px);
   animation: orbSpin 7s linear infinite;
 }
@@ -2822,6 +3106,7 @@ tr:last-child td {
     background: #ffffff !important;
     color: #000000 !important;
   }
+
   .sidebar,
   .workspace-topbar,
   .site-footer,
@@ -2834,17 +3119,21 @@ tr:last-child td {
   .alert {
     display: none !important;
   }
+
   .workspace-shell {
     display: block !important;
   }
+
   .container,
   .page-section {
     padding: 0 !important;
     margin: 0 !important;
   }
+
   .print-report-sheet {
     display: block !important;
   }
+
   .print-header {
     display: flex;
     align-items: center;
@@ -2853,6 +3142,7 @@ tr:last-child td {
     padding-bottom: 12px;
     margin-bottom: 14px;
   }
+
   .print-summary-bar {
     display: flex;
     gap: 24px;
@@ -2862,17 +3152,20 @@ tr:last-child td {
     background: #f1f5f9 !important;
     border: 1px solid #cbd5e1;
   }
+
   .print-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 9pt;
   }
+
   .print-table th,
   .print-table td {
     border: 1px solid #94a3b8;
     padding: 6px 8px;
     text-align: left;
   }
+
   .print-table th {
     background: #e2e8f0 !important;
     color: #0f172a !important;
