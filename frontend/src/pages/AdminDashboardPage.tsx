@@ -5,8 +5,10 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
+  MessageCircle,
   Package,
   Pencil,
+  Printer,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -53,6 +55,18 @@ interface ItemModalState {
   foundItem?: FoundItem | null;
 }
 
+function buildWhatsAppLink(phone?: string, message?: string): string | null {
+  if (!phone) return null;
+  let digits = phone.replace(/[^0-9]/g, '');
+  if (!digits) return null;
+  // Normalize local Ugandan 07... format to 2567...
+  if (digits.startsWith('0') && digits.length === 10) {
+    digits = `256${digits.slice(1)}`;
+  }
+  const textParam = message ? `?text=${encodeURIComponent(message)}` : '';
+  return `https://wa.me/${digits}${textParam}`;
+}
+
 export function AdminDashboardPage() {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [error, setError] = useState('');
@@ -91,6 +105,7 @@ export function AdminDashboardPage() {
   const [lostItems, setLostItems] = useState<LostItem[]>([]);
   const [lostSearch, setLostSearch] = useState('');
   const [lostStatusFilter, setLostStatusFilter] = useState('');
+  const [printMode, setPrintMode] = useState<'all' | 'recovered'>('all');
 
   const [foundItems, setFoundItems] = useState<FoundItem[]>([]);
   const [foundSearch, setFoundSearch] = useState('');
@@ -719,6 +734,23 @@ export function AdminDashboardPage() {
                           <strong>Student:</strong> {claim.claimant?.fullName} ({claim.claimant?.studentId}) ·{' '}
                           {claim.claimant?.email} · {claim.claimant?.phone}
                         </p>
+                        {claim.claimant?.phone && (
+                          <div style={{ marginBottom: 8 }}>
+                            <a
+                              href={
+                                buildWhatsAppLink(
+                                  claim.claimant.phone,
+                                  `Hello ${claim.claimant.fullName || 'Student'}, this is Bugema University Lost & Found staff regarding your claim ${claim.referenceCode} (${claim.foundItem?.itemName || 'campus item'}).`
+                                ) || '#'
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-whatsapp btn-sm"
+                            >
+                              <MessageCircle size={14} /> WhatsApp Claimant
+                            </a>
+                          </div>
+                        )}
                         <p className="small" style={{ margin: '6px 0' }}>
                           <strong>Explanation:</strong> {claim.explanation}
                         </p>
@@ -795,7 +827,7 @@ export function AdminDashboardPage() {
           </div>
         ) : tab === 'lost' ? (
           <div>
-            <div className="row-between" style={{ marginBottom: 14 }}>
+            <div className="row-between no-print" style={{ marginBottom: 14 }}>
               <div className="row-gap">
                 <input
                   type="search"
@@ -803,70 +835,122 @@ export function AdminDashboardPage() {
                   placeholder="Search lost items…"
                   value={lostSearch}
                   onChange={(e) => setLostSearch(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                  style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(14,77,156,0.18)', background: 'rgba(255,255,255,0.9)' }}
                 />
                 <select
                   aria-label="Filter lost reports by status"
                   value={lostStatusFilter}
                   onChange={(e) => setLostStatusFilter(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                  style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(14,77,156,0.18)', background: 'rgba(255,255,255,0.9)' }}
                 >
-                  <option value="">All statuses</option>
+                  <option value="">All statuses (incl. Recovered)</option>
                   {LOST_STATUSES.map((st) => (
                     <option key={st} value={st}>
-                      {st}
+                      {st === 'Claimed' ? 'Claimed (Recovered)' : st}
                     </option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${lostStatusFilter === 'Claimed' ? 'btn-success' : 'btn-secondary'}`}
+                  onClick={() => setLostStatusFilter((prev) => (prev === 'Claimed' ? '' : 'Claimed'))}
+                >
+                  <CheckCircle2 size={14} /> Recovered Only ({lostItems.filter((i) => i.status === 'Claimed').length})
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setItemModal({ open: true, kind: 'lost', mode: 'create' })}
-              >
-                <Upload size={15} /> Upload Lost Report
-              </button>
+              <div className="row-gap">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setPrintMode('all');
+                    window.setTimeout(() => window.print(), 60);
+                  }}
+                >
+                  <Printer size={15} /> Print All Lost &amp; Recovered
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setPrintMode('recovered');
+                    window.setTimeout(() => window.print(), 60);
+                  }}
+                >
+                  <Printer size={15} /> Print Recovered Only
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setItemModal({ open: true, kind: 'lost', mode: 'create' })}
+                >
+                  <Upload size={15} /> Upload Lost Report
+                </button>
+              </div>
             </div>
 
             {lostItems.length === 0 ? (
-              <div className="empty-state">No lost-item reports match your filter.</div>
+              <div className="empty-state no-print">No lost-item reports match your filter.</div>
             ) : (
-              <div className="table-wrap">
+              <div className="table-wrap no-print">
                 <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>Item &amp; Private Notes</th>
-                      <th>Owner</th>
+                      <th>Owner &amp; Direct Contact</th>
                       <th>Location / Date</th>
                       <th>Status</th>
                       <th>Admin Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lostItems.map((item) => (
-                      <tr key={item.id}>
-                        <td data-label="Item & Private Notes">
-                          <Link to={`/lost/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
-                            {item.itemName}
-                          </Link>
-                          <div className="muted small">{item.category}</div>
-                          {item.identifyingDetails && (
-                            <div className="small" style={{ marginTop: 4 }}>
-                              <em>Private:</em> {item.identifyingDetails}
+                    {lostItems.map((item) => {
+                      const waUrl = buildWhatsAppLink(
+                        item.owner?.phone,
+                        `Hello ${item.owner?.fullName || 'Student'}, this is Bugema University Campus Lost & Found staff regarding your lost item report: "${item.itemName}".`
+                      );
+                      return (
+                        <tr key={item.id}>
+                          <td data-label="Item & Private Notes">
+                            <Link to={`/lost/${item.id}`} style={{ fontWeight: 700, color: '#0e4d9c' }}>
+                              {item.itemName}
+                            </Link>
+                            <div className="muted small">{item.category}</div>
+                            {item.identifyingDetails && (
+                              <div className="small" style={{ marginTop: 4 }}>
+                                <em>Private:</em> {item.identifyingDetails}
+                              </div>
+                            )}
+                          </td>
+                          <td data-label="Owner & Direct Contact" className="small">
+                            <strong>{item.owner?.fullName || 'Unknown'}</strong>
+                            <div className="muted">{item.owner?.studentId}</div>
+                            {item.owner?.email && <div>{item.owner.email}</div>}
+                            {item.owner?.phone && <div>{item.owner.phone}</div>}
+                            {waUrl && (
+                              <div style={{ marginTop: 6 }}>
+                                <a
+                                  href={waUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-whatsapp btn-sm"
+                                >
+                                  <MessageCircle size={14} /> WhatsApp
+                                </a>
+                              </div>
+                            )}
+                          </td>
+                          <td data-label="Location / Date" className="small">
+                            {item.lastKnownLocation}
+                            <div className="muted">{formatDate(item.dateLost)}</div>
+                          </td>
+                          <td data-label="Status">
+                            <div className="row-gap" style={{ marginBottom: 6 }}>
+                              <StatusBadge status={item.status} />
+                              {item.status === 'Claimed' && (
+                                <span className="badge badge-green">Recovered</span>
+                              )}
                             </div>
-                          )}
-                        </td>
-                        <td data-label="Owner" className="small">
-                          {item.owner?.fullName}
-                          <div className="muted">{item.owner?.studentId}</div>
-                        </td>
-                        <td data-label="Location / Date" className="small">
-                          {item.lastKnownLocation}
-                          <div className="muted">{formatDate(item.dateLost)}</div>
-                        </td>
-                        <td data-label="Status">
-                          <StatusBadge status={item.status} />
-                          <div style={{ marginTop: 6 }}>
                             <select
                               aria-label={`Change status for ${item.itemName}`}
                               value={item.status}
@@ -880,43 +964,119 @@ export function AdminDashboardPage() {
                                 </option>
                               ))}
                             </select>
-                          </div>
-                        </td>
-                        <td data-label="Admin Actions">
-                          <div className="row-gap">
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() =>
-                                setItemModal({ open: true, kind: 'lost', mode: 'edit', lostItem: item })
-                              }
-                            >
-                              <Pencil size={14} /> Edit / Photo
-                            </button>
-                            {item.status !== 'Claimed' && (
+                          </td>
+                          <td data-label="Admin Actions">
+                            <div className="row-gap">
                               <button
                                 type="button"
-                                className="btn btn-success btn-sm"
-                                onClick={() => requestLostStatusChange(item, 'Claimed')}
+                                className="btn btn-secondary btn-sm"
+                                onClick={() =>
+                                  setItemModal({ open: true, kind: 'lost', mode: 'edit', lostItem: item })
+                                }
                               >
-                                <CheckCircle2 size={14} /> Found by Owner
+                                <Pencil size={14} /> Edit / Photo
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              className="btn btn-danger btn-sm"
-                              onClick={() => requestDeleteLostItem(item)}
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {item.status !== 'Claimed' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-success btn-sm"
+                                  onClick={() => requestLostStatusChange(item, 'Claimed')}
+                                >
+                                  <CheckCircle2 size={14} /> Found by Owner
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => requestDeleteLostItem(item)}
+                              >
+                                <Trash2 size={14} /> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
+
+            {/* Dedicated Print-Formatted Report Sheet (visible on window.print()) */}
+            <div className="print-report-sheet" aria-hidden="true">
+              <div className="print-header">
+                <img src="/bugema-logo.jpg" alt="Bugema University Crest" style={{ width: 64, height: 64 }} />
+                <div>
+                  <h1 style={{ margin: 0, fontSize: '18pt' }}>
+                    Bugema University Campus Lost &amp; Found —{' '}
+                    {printMode === 'recovered' ? 'Recovered Items Report' : 'Lost & Recovered Items Register'}
+                  </h1>
+                  <p style={{ margin: '4px 0 0', fontSize: '9.5pt', color: '#475569' }}>
+                    Printed on {formatDateTime(new Date().toISOString())} · Authorized Staff Copy (Contains Student Contact Details)
+                  </p>
+                </div>
+              </div>
+
+              {(() => {
+                const rows =
+                  printMode === 'recovered'
+                    ? lostItems.filter((i) => i.status === 'Claimed')
+                    : lostItems;
+                const recoveredCount = rows.filter((i) => i.status === 'Claimed').length;
+                const openCount = rows.filter((i) => i.status === 'Missing' || i.status === 'Matched').length;
+                return (
+                  <>
+                    <div className="print-summary-bar">
+                      <span><strong>Records Listed:</strong> {rows.length}</span>
+                      <span><strong>Recovered (Claimed):</strong> {recoveredCount}</span>
+                      <span><strong>Open (Missing/Matched):</strong> {openCount}</span>
+                    </div>
+                    <table className="print-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Item &amp; Category</th>
+                          <th>Recovery Status</th>
+                          <th>Last-Known Location &amp; Date</th>
+                          <th>Owner &amp; Student ID</th>
+                          <th>Contact &amp; WhatsApp Direct</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((item, idx) => {
+                          const waUrl = buildWhatsAppLink(item.owner?.phone);
+                          return (
+                            <tr key={item.id}>
+                              <td>{idx + 1}</td>
+                              <td>
+                                <strong>{item.itemName}</strong>
+                                <div>{item.category}</div>
+                              </td>
+                              <td>
+                                <strong>{item.status === 'Claimed' ? 'RECOVERED (Claimed)' : item.status}</strong>
+                              </td>
+                              <td>
+                                {item.lastKnownLocation}
+                                <div>{formatDate(item.dateLost)}</div>
+                              </td>
+                              <td>
+                                <strong>{item.owner?.fullName || 'N/A'}</strong>
+                                <div>{item.owner?.studentId || ''}</div>
+                              </td>
+                              <td>
+                                <div>Phone: {item.owner?.phone || 'N/A'}</div>
+                                <div>Email: {item.owner?.email || 'N/A'}</div>
+                                {waUrl && <div>WhatsApp: {waUrl}</div>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         ) : tab === 'found' ? (
           <div>

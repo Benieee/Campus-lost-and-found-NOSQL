@@ -243,6 +243,35 @@ export function HomePage() {
 
       <section className="page-section" style={{ paddingTop: 0 }}>
         <div className="container">
+          <div className="ai-home-teaser">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+              <div className="bu-ai-orb bu-ai-orb-sm" aria-hidden="true">
+                <div className="bu-ai-orb-core" />
+                <div className="bu-ai-orb-swirl" />
+                <div className="bu-ai-orb-shine" />
+              </div>
+              <div>
+                <span className="badge" style={{ background: 'rgba(245,183,0,0.2)', color: '#fff6d6' }}>
+                  AI STUDENT SUPPORT
+                </span>
+                <h2 style={{ margin: '6px 0 4px', color: '#fff', fontSize: '1.35rem' }}>
+                  Ask our AI Assistant in ordinary language
+                </h2>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.82)', maxWidth: '58ch', fontSize: '0.92rem' }}>
+                  Try “I left a blue water bottle near the library yesterday” to search public found
+                  listings or draft a lost report for your review.
+                </p>
+              </div>
+            </div>
+            <Link to="/assistant" className="btn btn-white">
+              Open AI Assistant <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="page-section" style={{ paddingTop: 0 }}>
+        <div className="container">
           <div className="steps-grid">
             <div className="card card-compact">
               <Search size={24} color="#1d63dc" aria-hidden="true" />

@@ -572,6 +572,17 @@ textarea {
   font-size: 0.82rem;
 }
 
+.btn-whatsapp {
+  background: linear-gradient(135deg, #169c4b, #25d366);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(22, 156, 75, 0.28);
+}
+
+.btn-whatsapp:hover:not(:disabled) {
+  background: linear-gradient(135deg, #12803e, #1eb958);
+  color: #ffffff;
+}
+
 /* =========================================================
    GLASS CARDS, SECTIONS, KPI TILES & VISUAL BARS
    ========================================================= */
@@ -1825,5 +1836,388 @@ tr:last-child td {
     letter-spacing: 0.04em;
     color: var(--ink-500);
     margin-bottom: 3px;
+  }
+}
+
+/* =========================================================
+   GLOWING ORB AI STUDENT SUPPORT ASSISTANT (Bugema Palette)
+   ========================================================= */
+.ai-stage {
+  border-radius: 28px;
+  padding: clamp(24px, 4vw, 44px) clamp(18px, 3vw, 36px);
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(37, 123, 230, 0.28), transparent 45%),
+    radial-gradient(circle at 85% 95%, rgba(245, 183, 0, 0.16), transparent 40%),
+    radial-gradient(circle at 12% 90%, rgba(217, 43, 43, 0.14), transparent 40%),
+    linear-gradient(180deg, #061327 0%, #091e3e 55%, #071936 100%);
+  box-shadow: 0 24px 56px rgba(4, 18, 42, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ai-hero-center {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 26px;
+}
+
+@keyframes orbSpin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.06);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes orbPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 28px rgba(37, 123, 230, 0.65),
+      0 0 58px rgba(245, 183, 0, 0.28),
+      inset 0 0 22px rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(37, 123, 230, 0.85),
+      0 0 74px rgba(217, 43, 43, 0.35),
+      inset 0 0 28px rgba(245, 183, 0, 0.45);
+  }
+}
+
+.bu-ai-orb {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  overflow: hidden;
+  background: #061327;
+  animation: orbPulse 4.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.bu-ai-orb-sm {
+  width: 68px;
+  height: 68px;
+  margin: 0;
+}
+
+.bu-ai-orb-core {
+  position: absolute;
+  inset: -16%;
+  background: conic-gradient(
+    from 0deg,
+    #0e4d9c 0deg,
+    #257be6 75deg,
+    #f5b700 145deg,
+    #d92b2b 215deg,
+    #1a64c2 290deg,
+    #0e4d9c 360deg
+  );
+  filter: blur(10px);
+  animation: orbSpin 7s linear infinite;
+}
+
+.bu-ai-orb-swirl {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.72), transparent 46%),
+    radial-gradient(circle at 72% 72%, rgba(8, 43, 89, 0.85), transparent 56%);
+}
+
+.bu-ai-orb-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 -14px 24px rgba(4, 18, 42, 0.6);
+}
+
+.ai-greeting-sub {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.ai-greeting-title {
+  margin: 4px 0 8px;
+  font-size: clamp(1.65rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+}
+
+.ai-greeting-desc {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.93rem;
+}
+
+.ai-thread {
+  max-width: 820px;
+  margin: 0 auto 22px;
+  display: grid;
+  gap: 14px;
+}
+
+.ai-msg {
+  padding: 16px 18px;
+  border-radius: 20px;
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+.ai-msg-user {
+  justify-self: end;
+  max-width: 82%;
+  background: linear-gradient(135deg, var(--bu-blue), var(--bu-blue-bright));
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.ai-msg-bot {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  border-bottom-left-radius: 6px;
+}
+
+.ai-suggestion-card,
+.ai-draft-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(8, 43, 89, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  margin-top: 8px;
+}
+
+.ai-prompt-box {
+  max-width: 820px;
+  margin: 0 auto;
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(11, 25, 48, 0.92);
+  border: 1px solid rgba(37, 123, 230, 0.45);
+  box-shadow: 0 14px 36px rgba(4, 14, 34, 0.45);
+}
+
+.ai-prompt-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  color: #dbeafe;
+  background: linear-gradient(90deg, rgba(14, 77, 156, 0.52), rgba(26, 100, 194, 0.3));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-prompt-box textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  padding: 16px 18px 8px;
+  font-size: 0.96rem;
+  resize: none;
+  outline: none;
+}
+
+.ai-prompt-box textarea::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.ai-prompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px 14px;
+  flex-wrap: wrap;
+}
+
+.ai-tool-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-tool-pill:hover:not(:disabled) {
+  background: rgba(37, 123, 230, 0.35);
+  border-color: var(--bu-gold);
+  color: #ffffff;
+}
+
+.ai-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--bu-blue-bright), var(--bu-blue));
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(37, 123, 230, 0.45);
+  transition: transform 0.15s ease;
+}
+
+.ai-send-btn:hover:not(:disabled) {
+  transform: scale(1.06);
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ai-starter-grid {
+  max-width: 820px;
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-starter-card {
+  text-align: left;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.15s ease;
+}
+
+.ai-starter-card:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(245, 183, 0, 0.55);
+  transform: translateY(-2px);
+}
+
+.ai-starter-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.92rem;
+}
+
+.ai-starter-card p {
+  margin: 0;
+  font-size: 0.81rem;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.45;
+}
+
+.ai-staff-footer {
+  max-width: 820px;
+  margin: 22px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.ai-home-teaser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 22px 26px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(245, 183, 0, 0.22), transparent 40%),
+    linear-gradient(135deg, #061327 0%, #0b2650 60%, #0e4d9c 100%);
+  box-shadow: 0 18px 40px rgba(6, 19, 39, 0.24);
+}
+
+@media (max-width: 768px) {
+  .ai-starter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   PRINT STYLES FOR ADMIN LOST & RECOVERED REPORTS
+   ========================================================= */
+.print-report-sheet {
+  display: none;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .sidebar,
+  .workspace-topbar,
+  .site-footer,
+  .mobile-bottom-nav,
+  .page-header,
+  .kpi-grid,
+  .tabs,
+  .no-print,
+  .modal-backdrop,
+  .alert {
+    display: none !important;
+  }
+  .workspace-shell {
+    display: block !important;
+  }
+  .container,
+  .page-section {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .print-report-sheet {
+    display: block !important;
+  }
+  .print-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 2px solid #0e4d9c;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .print-summary-bar {
+    display: flex;
+    gap: 24px;
+    font-size: 10pt;
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1;
+  }
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  .print-table th,
+  .print-table td {
+    border: 1px solid #94a3b8;
+    padding: 6px 8px;
+    text-align: left;
+  }
+  .print-table th {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
   }
 }

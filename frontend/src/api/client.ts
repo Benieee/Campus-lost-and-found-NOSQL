@@ -1,5 +1,6 @@
 import type {
   AdminMatchPair,
+  AssistantReply,
   AuditLogEntry,
   CampusLocation,
   Claim,
@@ -210,4 +211,17 @@ export const adminApi = {
     request<{ user: User }>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   auditLogs: (params: { entityType?: string; page?: number; limit?: number } = {}) =>
     request<{ logs: AuditLogEntry[]; pagination: PaginationMeta }>(`/admin/audit-logs${toQuery(params)}`)
+};
+
+export const assistantApi = {
+  status: () =>
+    request<{
+      available: boolean;
+      staffContact: { desk: string; hours: string; guidance: string };
+      privacySummary: string;
+    }>('/assistant/status'),
+  chat: (payload: {
+    message: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  }) => request<AssistantReply>('/assistant/chat', { method: 'POST', body: JSON.stringify(payload) })
 };

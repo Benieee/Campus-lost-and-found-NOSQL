@@ -8,6 +8,7 @@ import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { sanitizeRequest } from './middleware/sanitize';
 import { createAdminRouter } from './routes/adminRoutes';
+import { createAssistantRouter } from './routes/assistantRoutes';
 import { createAuthRouter } from './routes/authRoutes';
 import { createClaimRouter } from './routes/claimRoutes';
 import { createFoundItemRouter } from './routes/foundItemRoutes';
@@ -19,6 +20,8 @@ import { createUploadRouter } from './routes/uploadRoutes';
 export interface CreateAppOptions {
   authRateLimitMax?: number;
   claimRateLimitMax?: number;
+  aiRateLimitMax?: number;
+  aiAssistantEnabled?: boolean;
 }
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -79,6 +82,13 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/found-items', createFoundItemRouter());
   app.use('/api/claims', createClaimRouter(options.claimRateLimitMax));
   app.use('/api/admin', createAdminRouter());
+  app.use(
+    '/api/assistant',
+    createAssistantRouter({
+      rateLimitMax: options.aiRateLimitMax,
+      enabledOverride: options.aiAssistantEnabled
+    })
+  );
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'API endpoint not found.', code: 'NOT_FOUND' });

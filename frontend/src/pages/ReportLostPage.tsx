@@ -1,23 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { locationsApi, lostItemsApi, resolveMediaUrl, uploadsApi } from '../api/client';
 import { ITEM_CATEGORIES, type CampusLocation, type ContactPreference, type ItemCategory } from '../types';
 
 export function ReportLostPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
+  const aiDraft = (location.state as { aiDraft?: Record<string, string> } | null)?.aiDraft;
 
   const [locations, setLocations] = useState<CampusLocation[]>([]);
   const [form, setForm] = useState({
-    itemName: '',
-    category: 'Electronics' as ItemCategory,
-    description: '',
-    identifyingDetails: '',
-    lastKnownLocation: '',
+    itemName: aiDraft?.itemName || '',
+    category: ((ITEM_CATEGORIES as readonly string[]).includes(aiDraft?.category || '')
+      ? aiDraft?.category
+      : 'Electronics') as ItemCategory,
+    description: aiDraft?.description || '',
+    identifyingDetails: aiDraft?.identifyingDetails || '',
+    lastKnownLocation: aiDraft?.lastKnownLocation || '',
     locationRef: '',
-    dateLost: new Date().toISOString().slice(0, 10),
-    approximateTimeLost: '',
+    dateLost: aiDraft?.dateLost || new Date().toISOString().slice(0, 10),
+    approximateTimeLost: aiDraft?.approximateTimeLost || '',
     contactPreference: 'email' as ContactPreference,
     imageUrl: ''
   });
@@ -125,6 +129,12 @@ export function ReportLostPage() {
         </div>
 
         <div className="card">
+          {aiDraft && !editId && (
+            <div className="alert alert-info" role="status">
+              Pre-filled from your AI Assistant draft. Please review every field carefully and add
+              private identifying marks before submitting.
+            </div>
+          )}
           {error && (
             <div className="alert alert-error" role="alert">
               {error}

@@ -31,5 +31,10 @@ export const env = {
   uploadDir: path.resolve(process.cwd(), process.env.UPLOAD_DIR || 'uploads'),
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS || (isTest ? 4 : 12)),
   rateLimitAuthMax: Number(process.env.RATE_LIMIT_AUTH_MAX || 15),
-  rateLimitClaimsMax: Number(process.env.RATE_LIMIT_CLAIMS_MAX || 20)
+  rateLimitClaimsMax: Number(process.env.RATE_LIMIT_CLAIMS_MAX || 20),
+  rateLimitAiMax: Number(process.env.RATE_LIMIT_AI_MAX || 30),
+  aiAssistantEnabled: process.env.AI_ASSISTANT_ENABLED !== 'false',
+  aiProviderApiKey: process.env.AI_PROVIDER_API_KEY || '',
+  aiProviderBaseUrl: (process.env.AI_PROVIDER_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+  aiProviderModel: process.env.AI_PROVIDER_MODEL || 'gpt-4o-mini'
 };

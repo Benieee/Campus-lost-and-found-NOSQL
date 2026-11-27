@@ -135,3 +135,38 @@ export interface PaginationMeta {
   total: number;
   totalPages: number;
 }
+
+export interface AssistantSuggestedListing {
+  id: string;
+  itemName: string;
+  category: ItemCategory;
+  description: string;
+  locationFound: string;
+  holdingLocation: string;
+  dateFound: string;
+  status: string;
+  url: string;
+  matchReasons: string[];
+  disclaimer: string;
+}
+
+export interface AssistantDraft {
+  type: 'lost_report' | 'ownership_proof';
+  title: string;
+  fields: Record<string, string>;
+  privacyReminder: string;
+}
+
+export interface AssistantReply {
+  aiGenerated: true;
+  providerMode: 'external_llm' | 'campus_assistant';
+  reply: string;
+  followUpQuestions: string[];
+  suggestedListings: AssistantSuggestedListing[];
+  draft?: AssistantDraft;
+  staffContact: {
+    desk: string;
+    hours: string;
+    guidance: string;
+  };
+}

@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AssistantPage } from './pages/AssistantPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { FoundItemsPage } from './pages/FoundItemsPage';
 import { HomePage } from './pages/HomePage';
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/found/:id" element={<ItemDetailPage kind="found" />} />
             <Route path="/lost" element={<LostItemsPage />} />
             <Route path="/lost/:id" element={<ItemDetailPage kind="lost" />} />
+            <Route path="/assistant" element={<AssistantPage />} />
 
             <Route
               path="/dashboard"

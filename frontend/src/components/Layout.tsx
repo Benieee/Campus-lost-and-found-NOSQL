@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  Bot,
   ClipboardList,
   Home,
   LayoutDashboard,
@@ -27,6 +28,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/my-submissions': 'My Submissions & Claims',
   '/dashboard': 'Dashboard',
   '/admin': 'Admin Dashboard',
+  '/assistant': 'AI Student Support Assistant',
   '/privacy': 'Privacy Notice'
 };
 
@@ -139,6 +141,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </NavLink>
           <NavLink to="/lost" className="sidebar-link">
             <Search size={18} /> Lost Reports
+          </NavLink>
+          <NavLink to="/assistant" className="sidebar-link">
+            <Bot size={18} /> AI Support Assistant
           </NavLink>
         </nav>
 
