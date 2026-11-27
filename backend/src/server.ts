@@ -1,9 +1,13 @@
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { env } from './config/env';
 import { createApp } from './app';
+import { seedDatabase } from './seed/seed';
 
 async function bootstrap() {
   await connectDatabase();
+  if (process.env.AUTO_SEED_DEMO === 'true') {
+    await seedDatabase({ reset: false });
+  }
   const app = createApp();
 
   const server = app.listen(env.port, env.host, () => {

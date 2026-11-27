@@ -20,3 +20,5 @@ services:
         value: "12"
       - key: AI_ASSISTANT_ENABLED
         value: "true"
+      - key: AUTO_SEED_DEMO
+        value: "true"
