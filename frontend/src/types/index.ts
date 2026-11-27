@@ -16,10 +16,58 @@ export type ContactPreference = 'email' | 'phone' | 'in_app';
 export type LostItemStatus = 'Missing' | 'Matched' | 'Claimed' | 'Closed';
 export type FoundItemStatus = 'Stored' | 'Claim Pending' | 'Returned' | 'Archived';
 export type ClaimStatus = 'Pending' | 'Under Review' | 'Approved' | 'Rejected';
+export type ListingModerationStatus = 'Approved' | 'Pending Review' | 'Hidden' | 'Archived';
+export type ClaimVerificationMethod =
+  | 'In-Person ID Check'
+  | 'Student ID & Proof Match'
+  | 'Serial / Unique Mark Check'
+  | 'Department Verification'
+  | 'Other';
+export type CustodyEventType = 'Stored' | 'Transferred' | 'Collected' | 'Policy Action';
+export type UnclaimedPolicyAction =
+  | 'None'
+  | 'Extended Hold'
+  | 'Transferred to University Store'
+  | 'Donated'
+  | 'Disposed';
+export type FlagReportTarget = 'LostItem' | 'FoundItem' | 'Claim';
+export type FlagReportReason =
+  | 'Inaccurate Listing'
+  | 'Duplicate Entry'
+  | 'Suspicious Claim'
+  | 'Inappropriate Content'
+  | 'Privacy Risk'
+  | 'Other';
+export type FlagReportStatus = 'Open' | 'Investigating' | 'Resolved' | 'Dismissed';
 
 export const LOST_STATUSES: LostItemStatus[] = ['Missing', 'Matched', 'Claimed', 'Closed'];
 export const FOUND_STATUSES: FoundItemStatus[] = ['Stored', 'Claim Pending', 'Returned', 'Archived'];
 export const CLAIM_STATUSES: ClaimStatus[] = ['Pending', 'Under Review', 'Approved', 'Rejected'];
+export const MODERATION_STATUSES: ListingModerationStatus[] = ['Approved', 'Pending Review', 'Hidden', 'Archived'];
+export const CLAIM_VERIFICATION_METHODS: ClaimVerificationMethod[] = [
+  'In-Person ID Check',
+  'Student ID & Proof Match',
+  'Serial / Unique Mark Check',
+  'Department Verification',
+  'Other'
+];
+export const CUSTODY_EVENT_TYPES: CustodyEventType[] = ['Stored', 'Transferred', 'Collected', 'Policy Action'];
+export const UNCLAIMED_POLICY_ACTIONS: UnclaimedPolicyAction[] = [
+  'Extended Hold',
+  'Transferred to University Store',
+  'Donated',
+  'Disposed'
+];
+export const FLAG_REPORT_REASONS: FlagReportReason[] = [
+  'Inaccurate Listing',
+  'Duplicate Entry',
+  'Suspicious Claim',
+  'Inappropriate Content',
+  'Privacy Risk',
+  'Other'
+];
+export const FLAG_REPORT_STATUSES: FlagReportStatus[] = ['Open', 'Investigating', 'Resolved', 'Dismissed'];
+export const AUDIT_ENTITY_TYPES = ['User', 'LostItem', 'FoundItem', 'Claim', 'Location', 'FlagReport'] as const;
 
 export interface User {
   id: string;
@@ -43,6 +91,17 @@ export interface CampusLocation {
   isActive: boolean;
 }
 
+export interface CustodyEvent {
+  eventType: CustodyEventType;
+  location: string;
+  storageBin?: string;
+  recipientName?: string;
+  recipientId?: string;
+  notes?: string;
+  recordedByName?: string;
+  timestamp: string;
+}
+
 export interface LostItem {
   id: string;
   itemName: string;
@@ -56,6 +115,10 @@ export interface LostItem {
   imageUrl?: string;
   contactPreference?: ContactPreference;
   status: LostItemStatus;
+  moderationStatus?: ListingModerationStatus;
+  moderationNotes?: string;
+  privacyWarnings?: string[];
+  daysOpen?: number;
   isMine?: boolean;
   owner?: Partial<User>;
   createdAt: string;
@@ -72,8 +135,21 @@ export interface FoundItem {
   locationRef?: string;
   dateFound: string;
   holdingLocation: string;
+  storageBin?: string;
   imageUrl?: string;
   status: FoundItemStatus;
+  moderationStatus?: ListingModerationStatus;
+  moderationNotes?: string;
+  collectedAt?: string;
+  collectedByName?: string;
+  collectedById?: string;
+  custodyHistory?: CustodyEvent[];
+  unclaimedPolicyAction?: UnclaimedPolicyAction;
+  policyActionDate?: string;
+  policyNotes?: string;
+  privacyWarnings?: string[];
+  daysInStorage?: number;
+  policyDue?: boolean;
   isMine?: boolean;
   reporter?: Partial<User>;
   createdAt: string;
@@ -92,11 +168,80 @@ export interface Claim {
   explanation: string;
   identifyingProof: string;
   status: ClaimStatus;
+  verificationMethod?: ClaimVerificationMethod;
+  evidenceVerified?: boolean;
+  decisionReason?: string;
+  outcome?: string;
   verificationNotes: string;
   reviewedBy?: { id: string; fullName: string; role: UserRole };
   reviewedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FlagReport {
+  id: string;
+  targetType: FlagReportTarget;
+  targetId: string;
+  targetLabel: string;
+  reason: FlagReportReason;
+  details: string;
+  reportedBy?: { id: string; fullName: string; studentId?: string; email?: string; role: UserRole };
+  status: FlagReportStatus;
+  resolutionNotes: string;
+  actionTaken: string;
+  resolvedBy?: { id: string; fullName: string; role: UserRole };
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSystemReport {
+  generatedAt: string;
+  totals: {
+    lostReports: number;
+    foundItems: number;
+    returnedItems: number;
+    recoveryRatePercent: number;
+  };
+  byCategory: Array<{
+    category: ItemCategory;
+    lostCount: number;
+    foundCount: number;
+    returnedCount: number;
+  }>;
+  byHoldingDesk: Array<{
+    holdingLocation: string;
+    stored: number;
+    claimPending: number;
+    returned: number;
+    archived: number;
+  }>;
+  claimsBreakdown: {
+    total: number;
+    pending: number;
+    underReview: number;
+    approved: number;
+    rejected: number;
+    evidenceVerifiedCount: number;
+  };
+  moderationSummary: {
+    openFlags: number;
+    resolvedFlags: number;
+    hiddenListings: number;
+    archivedFound: number;
+  };
+  overdueSummary: {
+    overdueFound30d: number;
+    policyDue60d: number;
+    policyActionsApplied: number;
+  };
+  privacyAlerts: Array<{
+    id: string;
+    type: 'LostItem' | 'FoundItem';
+    itemName: string;
+    warnings: string[];
+  }>;
 }
 
 export interface SuggestedMatch<T> {

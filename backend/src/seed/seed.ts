@@ -1,5 +1,5 @@
 import { connectDatabase, disconnectDatabase } from '../config/database';
-import { AuditLog, Claim, FoundItem, Location, LostItem, User } from '../models';
+import { AuditLog, Claim, FlagReport, FoundItem, Location, LostItem, User } from '../models';
 import { hashPassword } from '../utils/auth';
 
 const DEMO_STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD || 'StaffDemo!2026';
@@ -15,6 +15,7 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
   if (options.reset) {
     await Promise.all([
       AuditLog.deleteMany({}),
+      FlagReport.deleteMany({}),
       Claim.deleteMany({}),
       LostItem.deleteMany({}),
       FoundItem.deleteMany({}),
@@ -236,10 +237,23 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       approximateTimeLost: '10:00',
       contactPreference: 'email',
       status: 'Closed'
+    },
+    {
+      owner: claire._id,
+      itemName: 'Black USB-C Multiport Hub',
+      category: 'Electronics',
+      description: 'Compact aluminum USB-C adapter with HDMI and two USB-A ports misplaced after seminar.',
+      identifyingDetails: 'Has a small red rubber band wrapped around the short attached cable.',
+      lastKnownLocation: 'Science Complex',
+      locationRef: locByCode.get('SCI-01')?._id,
+      dateLost: daysAgo(38),
+      approximateTimeLost: '14:20',
+      contactPreference: 'email',
+      status: 'Missing'
     }
   ]);
 
-  // 4. Fictional Found Items (6 items)
+  // 4. Fictional Found Items (7 items, including overdue unclaimed item for policy workflow)
   const foundItems = await FoundItem.insertMany([
     {
       reporter: staffLib._id,
@@ -251,7 +265,19 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('ICT-B')?._id,
       dateFound: daysAgo(3),
       holdingLocation: 'ICT Lab Block B',
-      status: 'Stored'
+      storageBin: 'Bin E-02',
+      status: 'Stored',
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'ICT Lab Block B',
+          storageBin: 'Bin E-02',
+          notes: 'Logged at ICT Lab technician desk.',
+          recordedBy: staffLib._id,
+          recordedByName: staffLib.fullName,
+          timestamp: daysAgo(3)
+        }
+      ]
     },
     {
       reporter: david._id,
@@ -263,7 +289,27 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('SCI-01')?._id,
       dateFound: daysAgo(4),
       holdingLocation: 'Main Gate Security Desk',
-      status: 'Claim Pending'
+      storageBin: 'Locker A-05',
+      status: 'Claim Pending',
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'Science Complex',
+          notes: 'Turned in by student finder.',
+          recordedBy: david._id,
+          recordedByName: david.fullName,
+          timestamp: daysAgo(4)
+        },
+        {
+          eventType: 'Transferred',
+          location: 'Main Gate Security Desk',
+          storageBin: 'Locker A-05',
+          notes: 'Transferred to central security desk for evening pickup.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(3)
+        }
+      ]
     },
     {
       reporter: staffAdmin._id,
@@ -275,7 +321,33 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('LIB-DESK')?._id,
       dateFound: daysAgo(8),
       holdingLocation: 'Main Library Circulation Desk',
-      status: 'Returned'
+      storageBin: 'Shelf B-01',
+      status: 'Returned',
+      collectedAt: daysAgo(6),
+      collectedByName: claire.fullName,
+      collectedById: claire.studentId,
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'Main Library Circulation Desk',
+          storageBin: 'Shelf B-01',
+          notes: 'Stored behind library circulation desk.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(8)
+        },
+        {
+          eventType: 'Collected',
+          location: 'Main Library Circulation Desk',
+          storageBin: 'Shelf B-01',
+          recipientName: claire.fullName,
+          recipientId: claire.studentId,
+          notes: 'Released after in-person student ID verification.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(6)
+        }
+      ]
     },
     {
       reporter: claire._id,
@@ -287,7 +359,19 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('DIN-01')?._id,
       dateFound: daysAgo(2),
       holdingLocation: 'Dean of Students Office',
-      status: 'Claim Pending'
+      storageBin: 'Safe Drawer 1',
+      status: 'Claim Pending',
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'Dean of Students Office',
+          storageBin: 'Safe Drawer 1',
+          notes: 'Secured in Dean of Students valuables drawer.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(2)
+        }
+      ]
     },
     {
       reporter: staffAdmin._id,
@@ -299,7 +383,19 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('HST-WK')?._id,
       dateFound: daysAgo(1),
       holdingLocation: 'Main Gate Security Desk',
-      status: 'Stored'
+      storageBin: 'Key Peg #09',
+      status: 'Stored',
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'Main Gate Security Desk',
+          storageBin: 'Key Peg #09',
+          notes: 'Tagged on key board at security desk.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(1)
+        }
+      ]
     },
     {
       reporter: staffLib._id,
@@ -311,7 +407,33 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       locationRef: locByCode.get('CHP-01')?._id,
       dateFound: daysAgo(15),
       holdingLocation: 'Main Gate Security Desk',
+      storageBin: 'Shelf C-04',
       status: 'Archived'
+    },
+    {
+      reporter: staffAdmin._id,
+      itemName: 'Grey Polarized Sunglasses in Hard Case',
+      category: 'Accessories',
+      description: 'Dark grey frame sunglasses inside a matte black zip case found on walkway bench.',
+      identifyingDetails: 'Microfiber cleaning cloth inside has light blue floral pattern.',
+      locationFound: 'Chapel Auditorium',
+      locationRef: locByCode.get('CHP-01')?._id,
+      dateFound: daysAgo(68),
+      holdingLocation: 'Main Gate Security Desk',
+      storageBin: 'Overdue Crate #2',
+      status: 'Stored',
+      unclaimedPolicyAction: 'None',
+      custodyHistory: [
+        {
+          eventType: 'Stored',
+          location: 'Main Gate Security Desk',
+          storageBin: 'Overdue Crate #2',
+          notes: 'Held beyond 60 days; eligible for university unclaimed-property policy review.',
+          recordedBy: staffAdmin._id,
+          recordedByName: staffAdmin.fullName,
+          timestamp: daysAgo(68)
+        }
+      ]
     }
   ]);
 
@@ -328,6 +450,10 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
       explanation: 'I accidentally left my navy backpack near the upper-floor study carrels before evening prayers.',
       identifyingProof: 'Top zipper pull is tied with brown twine, and inside the front pocket is my accounting notebook and a yellow ruler.',
       status: 'Approved',
+      verificationMethod: 'In-Person ID Check',
+      evidenceVerified: true,
+      decisionReason: 'Student ID and private marks matched stored backpack record.',
+      outcome: 'Verified in person at Main Library Desk; backpack released to student.',
       verificationNotes: 'Student ID verified in person; twine pull and notebook contents matched stored record. Item released.',
       reviewedBy: staffAdmin._id,
       reviewedAt: daysAgo(6)
@@ -380,7 +506,33 @@ export async function seedDatabase(options: { reset?: boolean } = {}) {
   foundKeys.status = 'Claim Pending';
   await foundKeys.save();
 
-  // 6. Initial Audit Logs
+  // 6. Fictional Flagged Reports (for moderation queue demonstration)
+  await FlagReport.insertMany([
+    {
+      targetType: 'LostItem',
+      targetId: lostItems[0]._id,
+      targetLabel: lostItems[0].itemName,
+      reason: 'Duplicate Entry',
+      details: 'A similar HP charger report appears to have been posted twice after lab hours. Please verify if duplicate.',
+      reportedBy: brian._id,
+      status: 'Open'
+    },
+    {
+      targetType: 'Claim',
+      targetId: claims[3]._id,
+      targetLabel: `Claim ${claims[3].referenceCode}`,
+      reason: 'Suspicious Claim',
+      details: 'Claimant submitted very generic description without unique power-brick markings.',
+      reportedBy: staffLib._id,
+      status: 'Resolved',
+      resolutionNotes: 'Claim rejected during verification; claimant could not verify taped initials.',
+      actionTaken: 'Claim rejected and logged for review.',
+      resolvedBy: staffAdmin._id,
+      resolvedAt: daysAgo(2)
+    }
+  ]);
+
+  // 7. Initial Audit Logs
   await AuditLog.insertMany([
     {
       actor: staffAdmin._id,

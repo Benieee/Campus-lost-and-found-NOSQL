@@ -1,15 +1,24 @@
 import type {
   AdminMatchPair,
+  AdminSystemReport,
   AssistantReply,
   AuditLogEntry,
   CampusLocation,
   Claim,
   ClaimStatus,
+  ClaimVerificationMethod,
+  CustodyEventType,
+  FlagReport,
+  FlagReportReason,
+  FlagReportStatus,
+  FlagReportTarget,
   FoundItem,
   LostItem,
   PaginationMeta,
   SuggestedMatchesResponse,
-  User
+  UnclaimedPolicyAction,
+  User,
+  UserRole
 } from '../types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -132,6 +141,7 @@ export const lostItemsApi = {
       category?: string;
       location?: string;
       status?: string;
+      moderationStatus?: string;
       dateFrom?: string;
       dateTo?: string;
       mine?: boolean;
@@ -155,6 +165,7 @@ export const foundItemsApi = {
       category?: string;
       location?: string;
       status?: string;
+      moderationStatus?: string;
       dateFrom?: string;
       dateTo?: string;
       mine?: boolean;
@@ -168,6 +179,29 @@ export const foundItemsApi = {
     request<{ item: FoundItem }>('/found-items', { method: 'POST', body: JSON.stringify(payload) }),
   update: (id: string, payload: Record<string, unknown>) =>
     request<{ item: FoundItem }>(`/found-items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  logCustody: (
+    id: string,
+    payload: {
+      eventType: CustodyEventType;
+      location: string;
+      storageBin?: string;
+      recipientName?: string;
+      recipientId?: string;
+      notes?: string;
+    }
+  ) => request<{ item: FoundItem }>(`/found-items/${id}/custody`, { method: 'POST', body: JSON.stringify(payload) }),
+  applyUnclaimedPolicy: (
+    id: string,
+    payload: {
+      policyAction: Exclude<UnclaimedPolicyAction, 'None'>;
+      policyNotes: string;
+      archiveItem?: boolean;
+    }
+  ) =>
+    request<{ item: FoundItem }>(`/found-items/${id}/unclaimed-policy`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
   remove: (id: string, force = false) =>
     request<void>(`/found-items/${id}${force ? '?force=true' : ''}`, { method: 'DELETE' })
 };
@@ -182,8 +216,32 @@ export const claimsApi = {
     explanation: string;
     identifyingProof: string;
   }) => request<{ claim: Claim }>('/claims', { method: 'POST', body: JSON.stringify(payload) }),
-  review: (id: string, payload: { status: ClaimStatus; verificationNotes: string }) =>
-    request<{ claim: Claim }>(`/claims/${id}/review`, { method: 'PATCH', body: JSON.stringify(payload) })
+  review: (
+    id: string,
+    payload: {
+      status: ClaimStatus;
+      verificationNotes: string;
+      verificationMethod?: ClaimVerificationMethod;
+      evidenceVerified?: boolean;
+      decisionReason?: string;
+      outcome?: string;
+    }
+  ) => request<{ claim: Claim }>(`/claims/${id}/review`, { method: 'PATCH', body: JSON.stringify(payload) })
+};
+
+export const reportsApi = {
+  create: (payload: {
+    targetType: FlagReportTarget;
+    targetId: string;
+    reason: FlagReportReason;
+    details: string;
+  }) => request<{ report: FlagReport }>('/reports', { method: 'POST', body: JSON.stringify(payload) }),
+  list: (params: { status?: string; reason?: string; targetType?: string; page?: number; limit?: number } = {}) =>
+    request<{ reports: FlagReport[]; pagination: PaginationMeta }>(`/reports${toQuery(params)}`),
+  review: (
+    id: string,
+    payload: { status: FlagReportStatus; resolutionNotes: string; actionTaken?: string }
+  ) => request<{ report: FlagReport }>(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
 };
 
 export const adminApi = {
@@ -199,17 +257,39 @@ export const adminApi = {
         totalStudents: number;
         totalStaff: number;
         activeLocations: number;
+        openFlagReports: number;
+        overdueFoundItems: number;
+        policyDueFoundItems: number;
+        overdueLostItems: number;
+        privacyWarningCount: number;
       };
       recentReturns: FoundItem[];
       awaitingClaims: Claim[];
       recentActivity: AuditLogEntry[];
       suggestedMatches: { disclaimer: string; matches: AdminMatchPair[] };
     }>('/admin/dashboard'),
+  overdue: () =>
+    request<{
+      thresholds: { overdueLostDays: number; overdueFoundDays: number; unclaimedPolicyDays: number };
+      policySummary: string;
+      overdueFound: FoundItem[];
+      overdueLost: LostItem[];
+    }>('/admin/overdue'),
+  reports: () => request<AdminSystemReport>('/admin/reports'),
   users: (params: { q?: string; role?: string; page?: number; limit?: number } = {}) =>
     request<{ users: User[]; pagination: PaginationMeta }>(`/admin/users${toQuery(params)}`),
+  createUser: (payload: {
+    studentId: string;
+    fullName: string;
+    email: string;
+    course: string;
+    phone: string;
+    password: string;
+    role: UserRole;
+  }) => request<{ user: User }>('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
   updateUser: (id: string, payload: { role?: 'student' | 'admin'; isActive?: boolean; course?: string }) =>
     request<{ user: User }>(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  auditLogs: (params: { entityType?: string; page?: number; limit?: number } = {}) =>
+  auditLogs: (params: { entityType?: string; q?: string; page?: number; limit?: number } = {}) =>
     request<{ logs: AuditLogEntry[]; pagination: PaginationMeta }>(`/admin/audit-logs${toQuery(params)}`)
 };
 

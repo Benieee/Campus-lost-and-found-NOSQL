@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  Flag,
   Lock,
   MapPin,
   Package,
@@ -12,12 +13,19 @@ import {
   Sparkles,
   Trash2
 } from 'lucide-react';
-import { ApiError, foundItemsApi, locationsApi, lostItemsApi, resolveMediaUrl } from '../api/client';
+import { ApiError, foundItemsApi, locationsApi, lostItemsApi, reportsApi, resolveMediaUrl } from '../api/client';
 import { AdminItemModal } from '../components/AdminItemModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
-import type { CampusLocation, FoundItem, LostItem, SuggestedMatchesResponse } from '../types';
+import {
+  FLAG_REPORT_REASONS,
+  type CampusLocation,
+  type FlagReportReason,
+  type FoundItem,
+  type LostItem,
+  type SuggestedMatchesResponse
+} from '../types';
 
 export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +42,10 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
   const [success, setSuccess] = useState('');
 
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState<FlagReportReason>('Inaccurate Listing');
+  const [flagDetails, setFlagDetails] = useState('');
+  const [flagBusy, setFlagBusy] = useState(false);
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     title: string;
@@ -332,6 +344,16 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
                   </button>
                 </>
               )}
+
+              {user && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setFlagModalOpen(true)}
+                >
+                  <Flag size={15} /> Report / Flag Issue
+                </button>
+              )}
             </div>
           </div>
 
@@ -429,6 +451,82 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
           onConfirm={executeConfirm}
           onCancel={() => setConfirmState(null)}
         />
+
+        {flagModalOpen && (
+          <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="flag-item-title">
+            <div className="modal-card" style={{ width: 'min(520px, 100%)' }}>
+              <h2 id="flag-item-title" style={{ marginTop: 0 }}>
+                Report an Issue with This Listing
+              </h2>
+              <p className="muted small" style={{ marginTop: 0 }}>
+                Flag inaccurate details, duplicate entries, privacy risks (e.g. exposed phone/ID), or inappropriate content for administrator review.
+              </p>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setFlagBusy(true);
+                  setError('');
+                  try {
+                    await reportsApi.create({
+                      targetType: isFound ? 'FoundItem' : 'LostItem',
+                      targetId: item.id,
+                      reason: flagReason,
+                      details: flagDetails.trim()
+                    });
+                    setFlagModalOpen(false);
+                    setFlagDetails('');
+                    setSuccess('Thank you. Your report has been sent to Lost & Found administrators for review.');
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Unable to submit report.');
+                  } finally {
+                    setFlagBusy(false);
+                  }
+                }}
+                style={{ display: 'grid', gap: 12 }}
+              >
+                <div className="field">
+                  <label htmlFor="flag-reason">Issue type *</label>
+                  <select
+                    id="flag-reason"
+                    value={flagReason}
+                    onChange={(e) => setFlagReason(e.target.value as FlagReportReason)}
+                  >
+                    {FLAG_REPORT_REASONS.filter((r) => r !== 'Suspicious Claim').map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="flag-details">Details for administrators *</label>
+                  <textarea
+                    id="flag-details"
+                    required
+                    minLength={5}
+                    value={flagDetails}
+                    onChange={(e) => setFlagDetails(e.target.value)}
+                    placeholder="Explain what is inaccurate, duplicated, sensitive, or inappropriate…"
+                    style={{ minHeight: 88 }}
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setFlagModalOpen(false)}
+                    disabled={flagBusy}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={flagBusy}>
+                    {flagBusy ? 'Submitting…' : 'Submit Report'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
