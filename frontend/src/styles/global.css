@@ -1303,6 +1303,7 @@ textarea {
   0% {
     background-position: -400px 0;
   }
+
   100% {
     background-position: 400px 0;
   }
@@ -1717,6 +1718,7 @@ tr:last-child td {
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .dashboard-split,
   .hero-grid,
   .detail-layout,
@@ -1729,6 +1731,7 @@ tr:last-child td {
   .workspace-shell {
     grid-template-columns: 1fr;
   }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -1740,21 +1743,27 @@ tr:last-child td {
     background: rgba(246, 250, 255, 0.96);
     z-index: 90;
   }
+
   .sidebar.mobile-open {
     transform: translateX(0);
   }
+
   .mobile-menu-btn {
     display: inline-flex;
   }
+
   .topbar-search-form {
     display: none;
   }
+
   .items-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .steps-grid {
     grid-template-columns: 1fr;
   }
@@ -1764,42 +1773,53 @@ tr:last-child td {
   .workspace-main {
     padding-bottom: 68px;
   }
+
   .mobile-bottom-nav {
     display: grid;
   }
+
   .topbar-profile-pill .profile-text {
     display: none;
   }
+
   .topbar-profile-pill {
     padding: 4px;
   }
+
   .items-grid,
   .form-grid,
   .filter-bar,
   .kpi-grid {
     grid-template-columns: 1fr;
   }
+
   .stat-breakdown-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .filter-toggle-mobile {
     display: inline-flex;
   }
+
   .filter-bar.collapsed-mobile {
     display: none;
   }
+
   .hero {
     margin: 14px 14px 4px;
     border-radius: 22px;
   }
+
   .hero-actions .btn,
   .modal-actions .btn {
     flex: 1 1 auto;
   }
+
   .search-inline {
     flex-direction: column;
     border-radius: 18px;
   }
+
   .search-inline .btn {
     width: 100%;
   }
@@ -1808,6 +1828,7 @@ tr:last-child td {
   .responsive-table thead {
     display: none;
   }
+
   .responsive-table,
   .responsive-table tbody,
   .responsive-table tr,
@@ -1815,18 +1836,22 @@ tr:last-child td {
     display: block;
     width: 100%;
   }
+
   .responsive-table tr {
     border-bottom: 10px solid rgba(14, 77, 156, 0.06);
     padding: 12px 14px;
   }
+
   .responsive-table td {
     padding: 6px 0;
     border-bottom: 1px solid var(--border-subtle);
   }
+
   .responsive-table td:last-child {
     border-bottom: none;
     padding-top: 10px;
   }
+
   .responsive-table td::before {
     content: attr(data-label);
     display: block;
