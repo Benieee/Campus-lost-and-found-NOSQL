@@ -2570,24 +2570,21 @@ tr:last-child td {
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .bu-ai-orb,
   .bu-ai-orb-core,
-  .bot-eye {
-
-    .bot-eye,
-    .search-trail-path,
-    .search-trail-path-alt,
-    .radar-ring,
-    .backdrop-seeker,
-    .floating-lost-icon,
-    .hero-footpath,
-    .hero-searcher-group,
-    .hero-beam-sweep,
-    .hero-curiosity-mark {
-      animation: none !important;
-    }
+  .bot-eye,
+  .search-trail-path,
+  .search-trail-path-alt,
+  .radar-ring,
+  .backdrop-seeker,
+  .floating-lost-icon,
+  .hero-footpath,
+  .hero-searcher-group,
+  .hero-beam-sweep,
+  .hero-curiosity-mark {
+    animation: none !important;
   }
+}
 
   /* =========================================================
    LOST & FOUND CAMPUS SEARCH BACKGROUND ANIMATIONS

@@ -15,6 +15,7 @@ import { createFoundItemRouter } from './routes/foundItemRoutes';
 import { createLocationRouter } from './routes/locationRoutes';
 import { createLostItemRouter } from './routes/lostItemRoutes';
 import { createPublicRouter } from './routes/publicRoutes';
+import { createReportRouter } from './routes/reportRoutes';
 import { createUploadRouter } from './routes/uploadRoutes';
 
 export interface CreateAppOptions {
@@ -82,6 +83,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use('/api/lost-items', createLostItemRouter());
   app.use('/api/found-items', createFoundItemRouter());
   app.use('/api/claims', createClaimRouter(options.claimRateLimitMax));
+  app.use('/api/reports', createReportRouter());
   app.use('/api/admin', createAdminRouter());
   app.use(
     '/api/assistant',

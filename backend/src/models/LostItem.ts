@@ -4,6 +4,8 @@ import {
   ContactPreference,
   ITEM_CATEGORIES,
   ItemCategory,
+  LISTING_MODERATION_STATUSES,
+  ListingModerationStatus,
   LOST_ITEM_STATUSES,
   LostItemStatus
 } from '../constants/domain';
@@ -22,6 +24,8 @@ export interface ILostItem extends Document {
   imageUrl?: string;
   contactPreference: ContactPreference;
   status: LostItemStatus;
+  moderationStatus: ListingModerationStatus;
+  moderationNotes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -96,6 +100,18 @@ const lostItemSchema = new Schema<ILostItem>(
       enum: LOST_ITEM_STATUSES,
       default: 'Missing',
       required: true
+    },
+    moderationStatus: {
+      type: String,
+      enum: LISTING_MODERATION_STATUSES,
+      default: 'Approved',
+      required: true
+    },
+    moderationNotes: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: ''
     }
   },
   {
@@ -104,6 +120,7 @@ const lostItemSchema = new Schema<ILostItem>(
 );
 
 lostItemSchema.index({ status: 1, createdAt: -1 });
+lostItemSchema.index({ moderationStatus: 1, status: 1 });
 lostItemSchema.index({ category: 1, status: 1 });
 lostItemSchema.index({ owner: 1, createdAt: -1 });
 lostItemSchema.index({ lastKnownLocation: 1, status: 1 });

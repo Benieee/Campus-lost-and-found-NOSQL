@@ -21,8 +21,8 @@ export function createPublicRouter() {
   router.get('/public/summary', async (_req, res, next) => {
     try {
       const [openLostReports, foundInStorage, returnedItems] = await Promise.all([
-        LostItem.countDocuments({ status: { $in: ['Missing', 'Matched'] } }),
-        FoundItem.countDocuments({ status: { $in: ['Stored', 'Claim Pending'] } }),
+        LostItem.countDocuments({ status: { $in: ['Missing', 'Matched'] }, moderationStatus: { $nin: ['Hidden', 'Archived'] } }),
+        FoundItem.countDocuments({ status: { $in: ['Stored', 'Claim Pending'] }, moderationStatus: { $nin: ['Hidden', 'Archived'] } }),
         FoundItem.countDocuments({ status: 'Returned' })
       ]);
 

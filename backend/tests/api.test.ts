@@ -6,7 +6,7 @@ import request from 'supertest';
 import { connectDatabase, disconnectDatabase } from '../src/config/database';
 import { env } from '../src/config/env';
 import { createApp } from '../src/app';
-import { AuditLog, Claim, FoundItem, Location, LostItem, User } from '../src/models';
+import { AuditLog, Claim, FlagReport, FoundItem, Location, LostItem, User } from '../src/models';
 import { seedDatabase } from '../src/seed/seed';
 import { hashPassword } from '../src/utils/auth';
 
@@ -61,6 +61,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await Promise.all([
     AuditLog.deleteMany({}),
+    FlagReport.deleteMany({}),
     Claim.deleteMany({}),
     LostItem.deleteMany({}),
     FoundItem.deleteMany({}),
@@ -734,6 +735,196 @@ describe('Bugema Campus Lost & Found API', () => {
       const foundListRes = await request(offlineAiApp).get('/api/found-items');
       expect(foundListRes.status).toBe(200);
       expect(Array.isArray(foundListRes.body.items)).toBe(true);
+    });
+  });
+
+  describe('Admin Governance: Moderation, Custody, Flagged Reports, Overdue Policy & Privacy Audit', () => {
+    it('supports listing moderation, storage/transfer/collection custody logs, structured claim outcomes, staff provisioning, flagged reports, overdue policy, and privacy audits', async () => {
+      const { user: student, password: studentPass } = await createAccount({
+        email: 'gov.student@example.edu',
+        studentId: '24/BIT/BU/R/6100'
+      });
+      const { user: admin, password: adminPass } = await createAccount({
+        email: 'gov.admin@example.edu',
+        studentId: 'BU-STF-610',
+        role: 'admin'
+      });
+
+      const studentAgent = await loginAgent(student.email, studentPass);
+      const adminAgent = await loginAgent(admin.email, adminPass);
+
+      // 1. Create a lost listing with an accidental phone number in public description (privacy check)
+      const lostRes = await studentAgent.post('/api/lost-items').send({
+        itemName: 'Silver Smart Watch',
+        category: 'Accessories',
+        description: 'Lost near library entrance, please call +256-771-222333 if found.',
+        identifyingDetails: 'Cracked screen edge on bottom right',
+        lastKnownLocation: 'Main Library Circulation Desk',
+        dateLost: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        contactPreference: 'phone'
+      });
+      expect(lostRes.status).toBe(201);
+      const lostId = lostRes.body.item.id;
+
+      // 2. Admin hides the listing while redacting PII — public view no longer sees it
+      const hideRes = await adminAgent.patch(`/api/lost-items/${lostId}`).send({
+        moderationStatus: 'Hidden',
+        moderationNotes: 'Temporarily hidden to redact phone number'
+      });
+      expect(hideRes.status).toBe(200);
+      expect(hideRes.body.item.moderationStatus).toBe('Hidden');
+      expect(hideRes.body.item.privacyWarnings?.length).toBeGreaterThanOrEqual(1);
+
+      const publicHiddenLookup = await request(app).get(`/api/lost-items/${lostId}`);
+      expect(publicHiddenLookup.status).toBe(404);
+
+      // Admin redacts public description & re-approves
+      const approveRes = await adminAgent.patch(`/api/lost-items/${lostId}`).send({
+        description: 'Lost near library entrance.',
+        moderationStatus: 'Approved'
+      });
+      expect(approveRes.status).toBe(200);
+      expect(approveRes.body.item.privacyWarnings).toBeUndefined();
+
+      // 3. Create overdue found item (65 days ago), track storage transfer & verify custody is private
+      const foundRes = await adminAgent.post('/api/found-items').send({
+        itemName: 'Graphite Umbrella',
+        category: 'Accessories',
+        description: 'Folding umbrella found outside chapel.',
+        identifyingDetails: 'Red ribbon tied to handle',
+        locationFound: 'Chapel Auditorium',
+        dateFound: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        holdingLocation: 'Main Library Circulation Desk',
+        storageBin: 'Rack A-1'
+      });
+      expect(foundRes.status).toBe(201);
+      const foundId = foundRes.body.item.id;
+
+      const transferRes = await adminAgent.post(`/api/found-items/${foundId}/custody`).send({
+        eventType: 'Transferred',
+        location: 'Main Gate Security Desk',
+        storageBin: 'Overdue Crate 3',
+        notes: 'Moved to central desk for long-term holding'
+      });
+      expect(transferRes.status).toBe(200);
+      expect(transferRes.body.item.holdingLocation).toBe('Main Gate Security Desk');
+      expect(transferRes.body.item.storageBin).toBe('Overdue Crate 3');
+      expect(transferRes.body.item.custodyHistory.length).toBe(2);
+
+      // Public response must NOT expose custodyHistory or storageBin
+      const publicFound = await request(app).get(`/api/found-items/${foundId}`);
+      expect(publicFound.status).toBe(200);
+      expect(publicFound.body.item.custodyHistory).toBeUndefined();
+      expect(publicFound.body.item.storageBin).toBeUndefined();
+
+      // 4. Overdue monitor detects both 65d found item (policyDue) and 40d lost item
+      const overdueRes = await adminAgent.get('/api/admin/overdue');
+      expect(overdueRes.status).toBe(200);
+      expect(overdueRes.body.overdueFound.some((i: any) => i.id === foundId && i.policyDue === true)).toBe(true);
+      expect(overdueRes.body.overdueLost.some((i: any) => i.id === lostId)).toBe(true);
+
+      // Apply university unclaimed-property policy action
+      const policyRes = await adminAgent.post(`/api/found-items/${foundId}/unclaimed-policy`).send({
+        policyAction: 'Transferred to University Store',
+        policyNotes: 'Held over 60 days without claim; transferred per campus unclaimed property policy.',
+        archiveItem: true
+      });
+      expect(policyRes.status).toBe(200);
+      expect(policyRes.body.item.status).toBe('Archived');
+      expect(policyRes.body.item.unclaimedPolicyAction).toBe('Transferred to University Store');
+
+      // 5. Structured claim verification method, decision reason, and outcome + automatic Collected custody log
+      const found2Res = await adminAgent.post('/api/found-items').send({
+        itemName: 'Blue Graphing Calculator',
+        category: 'Electronics',
+        description: 'Blue calculator turned in at Science Complex.',
+        identifyingDetails: 'Sticker "MATH-301" inside cover',
+        locationFound: 'Science Complex',
+        dateFound: new Date().toISOString().slice(0, 10),
+        holdingLocation: 'Main Gate Security Desk',
+        storageBin: 'Drawer 2'
+      });
+      const found2Id = found2Res.body.item.id;
+
+      const claimRes = await studentAgent.post('/api/claims').send({
+        foundItemId: found2Id,
+        explanation: 'Left my blue graphing calculator in Lecture Room 3 yesterday.',
+        identifyingProof: 'Sticker reading MATH-301 inside the cover'
+      });
+      expect(claimRes.status).toBe(201);
+      const claimId = claimRes.body.claim.id;
+
+      const reviewRes = await adminAgent.patch(`/api/claims/${claimId}/review`).send({
+        status: 'Approved',
+        verificationMethod: 'In-Person ID Check',
+        evidenceVerified: true,
+        decisionReason: 'Student ID matched and private sticker confirmed.',
+        outcome: 'Released to verified student at Main Gate Desk.',
+        verificationNotes: 'In-person verification completed cleanly.'
+      });
+      expect(reviewRes.status).toBe(200);
+      expect(reviewRes.body.claim.verificationMethod).toBe('In-Person ID Check');
+      expect(reviewRes.body.claim.evidenceVerified).toBe(true);
+      expect(reviewRes.body.claim.decisionReason).toContain('private sticker');
+      expect(reviewRes.body.claim.outcome).toContain('Released');
+
+      const returnedFound = await adminAgent.get(`/api/found-items/${found2Id}`);
+      expect(returnedFound.body.item.status).toBe('Returned');
+      expect(returnedFound.body.item.collectedAt).toBeTruthy();
+      expect(returnedFound.body.item.custodyHistory.some((ev: any) => ev.eventType === 'Collected')).toBe(true);
+
+      // 6. Flagged report workflow (student flags listing; admin resolves; student cannot list all reports)
+      const flagCreate = await studentAgent.post('/api/reports').send({
+        targetType: 'LostItem',
+        targetId: lostId,
+        reason: 'Duplicate Entry',
+        details: 'This looks identical to another smartwatch listing posted earlier.'
+      });
+      expect(flagCreate.status).toBe(201);
+      const flagId = flagCreate.body.report.id;
+
+      const studentFlagList = await studentAgent.get('/api/reports');
+      expect(studentFlagList.status).toBe(403);
+
+      const adminFlagResolve = await adminAgent.patch(`/api/reports/${flagId}`).send({
+        status: 'Resolved',
+        resolutionNotes: 'Checked database; confirmed unique report and notified reporter.',
+        actionTaken: 'Verified unique entry'
+      });
+      expect(adminFlagResolve.status).toBe(200);
+      expect(adminFlagResolve.body.report.status).toBe('Resolved');
+
+      // 7. Staff account provisioning by admin (blocked for students)
+      const studentProvisionAttempt = await studentAgent.post('/api/admin/users').send({
+        studentId: 'BU-STF-999',
+        fullName: 'Unauthorized Staff',
+        email: 'unauth.staff@example.edu',
+        course: 'Security',
+        phone: '+256-700-999111',
+        password: 'StaffPassword!2026',
+        role: 'admin'
+      });
+      expect(studentProvisionAttempt.status).toBe(403);
+
+      const adminProvision = await adminAgent.post('/api/admin/users').send({
+        studentId: 'BU-STF-998',
+        fullName: 'New Desk Officer',
+        email: 'desk.officer@example.edu',
+        course: 'Campus Security Desk',
+        phone: '+256-700-999112',
+        password: 'StaffPassword!2026',
+        role: 'admin'
+      });
+      expect(adminProvision.status).toBe(201);
+      expect(adminProvision.body.user.role).toBe('admin');
+
+      // 8. System reports endpoint returns structured analytics
+      const sysReport = await adminAgent.get('/api/admin/reports');
+      expect(sysReport.status).toBe(200);
+      expect(sysReport.body.totals.foundItems).toBeGreaterThanOrEqual(2);
+      expect(sysReport.body.totals.returnedItems).toBeGreaterThanOrEqual(1);
+      expect(sysReport.body.claimsBreakdown.approved).toBeGreaterThanOrEqual(1);
+      expect(sysReport.body.moderationSummary.resolvedFlags).toBeGreaterThanOrEqual(1);
     });
   });
 });

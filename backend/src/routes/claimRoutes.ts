@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Router } from 'express';
 import { FilterQuery } from 'mongoose';
 import { CLAIM_STATUSES } from '../constants/domain';
-import { Claim, FoundItem, IClaim, LostItem } from '../models';
+import { Claim, FoundItem, IClaim, LostItem, User } from '../models';
 import { requireAdmin, requireAuth } from '../middleware/auth';
 import { createClaimRateLimiter } from '../middleware/rateLimit';
 import { recordAuditLog } from '../services/auditService';
@@ -233,15 +233,50 @@ export function createClaimRouter(rateLimitMax?: number) {
 
       const now = new Date();
       const reviewerId = assertObjectId(req.user!.id, 'reviewer ID');
+      const [reviewerUser, claimantUser] = await Promise.all([
+        User.findById(reviewerId).select('fullName').lean(),
+        User.findById(claim.claimant).select('fullName studentId').lean()
+      ]);
 
       claim.status = parsed.status;
       claim.verificationNotes = parsed.verificationNotes;
+      if (parsed.verificationMethod !== undefined) claim.verificationMethod = parsed.verificationMethod;
+      if (parsed.evidenceVerified !== undefined) claim.evidenceVerified = parsed.evidenceVerified;
+      if (parsed.decisionReason !== undefined) {
+        claim.decisionReason = parsed.decisionReason;
+      } else if (!claim.decisionReason) {
+        claim.decisionReason = parsed.verificationNotes;
+      }
+      if (parsed.outcome !== undefined) {
+        claim.outcome = parsed.outcome;
+      } else if (parsed.status === 'Approved') {
+        claim.outcome = `Ownership verified (${parsed.verificationMethod || 'Staff Verification'}); item released to ${claimantUser?.fullName || 'claimant'}.`;
+      } else if (parsed.status === 'Rejected') {
+        claim.outcome = 'Claim rejected after evidence review; item remains in campus custody.';
+      } else if (parsed.status === 'Under Review') {
+        claim.outcome = 'Awaiting in-person ID and evidence verification at holding desk.';
+      }
+
       claim.reviewedBy = reviewerId;
       claim.reviewedAt = now;
       await claim.save();
 
       if (parsed.status === 'Approved') {
         foundItem.status = 'Returned';
+        foundItem.collectedAt = now;
+        foundItem.collectedByName = claimantUser?.fullName || 'Verified Claimant';
+        foundItem.collectedById = claimantUser?.studentId || '';
+        foundItem.custodyHistory.push({
+          eventType: 'Collected',
+          location: foundItem.holdingLocation,
+          storageBin: foundItem.storageBin || undefined,
+          recipientName: claimantUser?.fullName || 'Verified Claimant',
+          recipientId: claimantUser?.studentId || undefined,
+          notes: `Released upon claim ${claim.referenceCode} approval (${claim.verificationMethod || 'Staff Verification'}).`,
+          recordedBy: reviewerId,
+          recordedByName: reviewerUser?.fullName || 'Admin Staff',
+          timestamp: now
+        });
         await foundItem.save();
 
         if (claim.linkedLostItem) {
@@ -273,6 +308,8 @@ export function createClaimRouter(rateLimitMax?: number) {
             $set: {
               status: 'Rejected',
               verificationNotes: 'Another ownership claim for this found item was verified and approved.',
+              decisionReason: 'Superseded by another verified owner.',
+              outcome: 'Closed automatically after item release to verified owner.',
               reviewedBy: reviewerId,
               reviewedAt: now
             }
@@ -305,6 +342,8 @@ export function createClaimRouter(rateLimitMax?: number) {
         metadata: {
           previousStatus: previousClaimStatus,
           newStatus: claim.status,
+          verificationMethod: claim.verificationMethod,
+          evidenceVerified: claim.evidenceVerified,
           foundItemId: String(foundItem._id),
           foundItemPreviousStatus: previousFoundStatus,
           foundItemNewStatus: foundItem.status

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { FilterQuery } from 'mongoose';
-import { ITEM_CATEGORIES, LOST_ITEM_STATUSES } from '../constants/domain';
+import { ITEM_CATEGORIES, LISTING_MODERATION_STATUSES, LOST_ITEM_STATUSES } from '../constants/domain';
 import { ILostItem, Location, LostItem } from '../models';
 import { attachOptionalUser, requireAuth } from '../middleware/auth';
 import { recordAuditLog } from '../services/auditService';
@@ -22,6 +22,7 @@ export function createLostItemRouter() {
     try {
       const { page, limit, skip } = parsePagination(req.query as Record<string, unknown>);
       const filter: FilterQuery<ILostItem> = {};
+      const isAdmin = req.user?.role === 'admin';
 
       if (req.query.mine === 'true') {
         if (!req.user) {
@@ -38,6 +39,14 @@ export function createLostItemRouter() {
       const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
       if (status && (LOST_ITEM_STATUSES as readonly string[]).includes(status)) {
         filter.status = status;
+      }
+
+      const moderationStatus =
+        typeof req.query.moderationStatus === 'string' ? req.query.moderationStatus.trim() : '';
+      if (isAdmin && moderationStatus && (LISTING_MODERATION_STATUSES as readonly string[]).includes(moderationStatus)) {
+        filter.moderationStatus = moderationStatus;
+      } else if (!isAdmin && req.query.mine !== 'true') {
+        filter.moderationStatus = { $nin: ['Hidden', 'Archived'] };
       }
 
       const location = typeof req.query.location === 'string' ? req.query.location.trim() : '';
@@ -69,7 +78,7 @@ export function createLostItemRouter() {
       }
 
       const queryBuilder = LostItem.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
-      if (req.user?.role === 'admin') {
+      if (isAdmin) {
         queryBuilder.populate('owner', 'fullName studentId email phone course role');
       }
 
@@ -93,12 +102,18 @@ export function createLostItemRouter() {
   router.get('/:id', attachOptionalUser, async (req, res, next) => {
     try {
       const id = assertObjectId(req.params.id, 'lost item ID');
+      const isAdmin = req.user?.role === 'admin';
       const query = LostItem.findById(id);
-      if (req.user?.role === 'admin') {
+      if (isAdmin) {
         query.populate('owner', 'fullName studentId email phone course role');
       }
       const item = await query;
       if (!item) {
+        throw new AppError(404, 'Lost-item report not found.', 'NOT_FOUND');
+      }
+
+      const isOwner = Boolean(req.user && String(item.owner) === req.user.id);
+      if (!isAdmin && !isOwner && (item.moderationStatus === 'Hidden' || item.moderationStatus === 'Archived')) {
         throw new AppError(404, 'Lost-item report not found.', 'NOT_FOUND');
       }
 
@@ -139,7 +154,8 @@ export function createLostItemRouter() {
         approximateTimeLost: parsed.approximateTimeLost || 'Unknown',
         contactPreference: parsed.contactPreference,
         imageUrl: parsed.imageUrl || undefined,
-        status: 'Missing'
+        status: 'Missing',
+        moderationStatus: 'Approved'
       });
 
       await recordAuditLog({
@@ -187,9 +203,13 @@ export function createLostItemRouter() {
             'FORBIDDEN_STATUS'
           );
         }
+        if (parsed.moderationStatus !== undefined || parsed.moderationNotes !== undefined) {
+          throw new AppError(403, 'Only administrators may change listing moderation status.', 'FORBIDDEN');
+        }
       }
 
       const previousStatus = item.status;
+      const previousModeration = item.moderationStatus || 'Approved';
 
       if (parsed.locationRef !== undefined) {
         if (parsed.locationRef === null || parsed.locationRef === '') {
@@ -214,21 +234,30 @@ export function createLostItemRouter() {
       if (parsed.contactPreference !== undefined) item.contactPreference = parsed.contactPreference;
       if (parsed.imageUrl !== undefined) item.imageUrl = parsed.imageUrl || undefined;
       if (parsed.status !== undefined) item.status = parsed.status;
+      if (isAdmin && parsed.moderationStatus !== undefined) item.moderationStatus = parsed.moderationStatus;
+      if (isAdmin && parsed.moderationNotes !== undefined) item.moderationNotes = parsed.moderationNotes;
 
       await item.save();
 
-      if (previousStatus !== item.status || isAdmin) {
+      if (previousStatus !== item.status || previousModeration !== item.moderationStatus || isAdmin) {
         await recordAuditLog({
           actorId: req.user!.id,
           actorRole: req.user!.role,
-          action: previousStatus !== item.status ? 'LOST_ITEM_STATUS_UPDATED' : 'LOST_ITEM_UPDATED',
+          action:
+            previousModeration !== item.moderationStatus
+              ? 'LOST_ITEM_MODERATED'
+              : previousStatus !== item.status
+                ? 'LOST_ITEM_STATUS_UPDATED'
+                : 'LOST_ITEM_UPDATED',
           entityType: 'LostItem',
           entityId: item._id,
           summary:
-            previousStatus !== item.status
-              ? `Changed lost item "${item.itemName}" status from ${previousStatus} to ${item.status}.`
-              : `Updated lost item report "${item.itemName}".`,
-          metadata: { previousStatus, newStatus: item.status }
+            previousModeration !== item.moderationStatus
+              ? `Moderated lost report "${item.itemName}" from ${previousModeration} to ${item.moderationStatus}.`
+              : previousStatus !== item.status
+                ? `Changed lost item "${item.itemName}" status from ${previousStatus} to ${item.status}.`
+                : `Updated lost item report "${item.itemName}".`,
+          metadata: { previousStatus, newStatus: item.status, moderationStatus: item.moderationStatus }
         });
       }
 

@@ -5,11 +5,13 @@ import {
   FOUND_STATUSES,
   ITEM_CATEGORIES,
   LOST_STATUSES,
+  MODERATION_STATUSES,
   type CampusLocation,
   type ContactPreference,
   type FoundItem,
   type FoundItemStatus,
   type ItemCategory,
+  type ListingModerationStatus,
   type LostItem,
   type LostItemStatus
 } from '../types';
@@ -42,11 +44,14 @@ export function AdminItemModal({
   const [locationText, setLocationText] = useState('');
   const [locationRef, setLocationRef] = useState('');
   const [holdingLocation, setHoldingLocation] = useState('');
+  const [storageBin, setStorageBin] = useState('');
   const [dateValue, setDateValue] = useState(new Date().toISOString().slice(0, 10));
   const [approxTime, setApproxTime] = useState('');
   const [contactPreference, setContactPreference] = useState<ContactPreference>('email');
   const [lostStatus, setLostStatus] = useState<LostItemStatus>('Missing');
   const [foundStatus, setFoundStatus] = useState<FoundItemStatus>('Stored');
+  const [moderationStatus, setModerationStatus] = useState<ListingModerationStatus>('Approved');
+  const [moderationNotes, setModerationNotes] = useState('');
   const [imageUrl, setImageUrl] = useState('');
 
   const [uploading, setUploading] = useState(false);
@@ -67,6 +72,8 @@ export function AdminItemModal({
       setApproxTime(initialLost.approximateTimeLost || '');
       setContactPreference(initialLost.contactPreference || 'email');
       setLostStatus(initialLost.status);
+      setModerationStatus(initialLost.moderationStatus || 'Approved');
+      setModerationNotes(initialLost.moderationNotes || '');
       setImageUrl(initialLost.imageUrl || '');
     } else if (kind === 'found' && mode === 'edit' && initialFound) {
       setItemName(initialFound.itemName);
@@ -76,8 +83,11 @@ export function AdminItemModal({
       setLocationText(initialFound.locationFound);
       setLocationRef(initialFound.locationRef || '');
       setHoldingLocation(initialFound.holdingLocation);
+      setStorageBin(initialFound.storageBin || '');
       setDateValue(initialFound.dateFound ? initialFound.dateFound.slice(0, 10) : new Date().toISOString().slice(0, 10));
       setFoundStatus(initialFound.status);
+      setModerationStatus(initialFound.moderationStatus || 'Approved');
+      setModerationNotes(initialFound.moderationNotes || '');
       setImageUrl(initialFound.imageUrl || '');
     } else {
       setItemName('');
@@ -87,11 +97,14 @@ export function AdminItemModal({
       setLocationText('');
       setLocationRef('');
       setHoldingLocation(locations.find((l) => l.isHoldingDesk)?.name || 'Main Gate Security Desk');
+      setStorageBin('');
       setDateValue(new Date().toISOString().slice(0, 10));
       setApproxTime('');
       setContactPreference('email');
       setLostStatus('Missing');
       setFoundStatus('Stored');
+      setModerationStatus('Approved');
+      setModerationNotes('');
       setImageUrl('');
     }
   }, [open, kind, mode, initialLost, initialFound, locations]);
@@ -145,6 +158,8 @@ export function AdminItemModal({
         };
         if (mode === 'edit' && initialLost) {
           payload.status = lostStatus;
+          payload.moderationStatus = moderationStatus;
+          payload.moderationNotes = moderationNotes.trim();
           await lostItemsApi.update(initialLost.id, payload);
           onSaved(`Updated lost report "${itemName.trim()}".`);
         } else {
@@ -161,10 +176,13 @@ export function AdminItemModal({
           locationRef: locationRef || undefined,
           dateFound: dateValue,
           holdingLocation: holdingLocation.trim(),
+          storageBin: storageBin.trim(),
           imageUrl: imageUrl || ''
         };
         if (mode === 'edit' && initialFound) {
           payload.status = foundStatus;
+          payload.moderationStatus = moderationStatus;
+          payload.moderationNotes = moderationNotes.trim();
           await foundItemsApi.update(initialFound.id, payload);
           onSaved(`Updated found item "${itemName.trim()}".`);
         } else {
@@ -294,21 +312,32 @@ export function AdminItemModal({
           </div>
 
           {kind === 'found' ? (
-            <div className="field">
-              <label htmlFor="adm-item-holding">Holding desk / location *</label>
-              <input
-                id="adm-item-holding"
-                list="adm-holding-desks"
-                required
-                value={holdingLocation}
-                onChange={(e) => setHoldingLocation(e.target.value)}
-              />
-              <datalist id="adm-holding-desks">
-                {holdingDesks.map((d) => (
-                  <option key={d.id} value={d.name} />
-                ))}
-              </datalist>
-            </div>
+            <>
+              <div className="field">
+                <label htmlFor="adm-item-holding">Holding desk / location *</label>
+                <input
+                  id="adm-item-holding"
+                  list="adm-holding-desks"
+                  required
+                  value={holdingLocation}
+                  onChange={(e) => setHoldingLocation(e.target.value)}
+                />
+                <datalist id="adm-holding-desks">
+                  {holdingDesks.map((d) => (
+                    <option key={d.id} value={d.name} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="field">
+                <label htmlFor="adm-item-bin">Storage shelf / bin / locker</label>
+                <input
+                  id="adm-item-bin"
+                  value={storageBin}
+                  onChange={(e) => setStorageBin(e.target.value)}
+                  placeholder="e.g. Locker A-05 or Safe Drawer 1"
+                />
+              </div>
+            </>
           ) : (
             <div className="field">
               <label htmlFor="adm-item-time">Approximate time lost</label>
@@ -322,34 +351,61 @@ export function AdminItemModal({
           )}
 
           {mode === 'edit' && (
-            <div className="field">
-              <label htmlFor="adm-item-status">Status *</label>
-              {kind === 'found' ? (
+            <>
+              <div className="field">
+                <label htmlFor="adm-item-status">Status *</label>
+                {kind === 'found' ? (
+                  <select
+                    id="adm-item-status"
+                    value={foundStatus}
+                    onChange={(e) => setFoundStatus(e.target.value as FoundItemStatus)}
+                  >
+                    {FOUND_STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    id="adm-item-status"
+                    value={lostStatus}
+                    onChange={(e) => setLostStatus(e.target.value as LostItemStatus)}
+                  >
+                    {LOST_STATUSES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="field">
+                <label htmlFor="adm-item-moderation">Public visibility / moderation</label>
                 <select
-                  id="adm-item-status"
-                  value={foundStatus}
-                  onChange={(e) => setFoundStatus(e.target.value as FoundItemStatus)}
+                  id="adm-item-moderation"
+                  value={moderationStatus}
+                  onChange={(e) => setModerationStatus(e.target.value as ListingModerationStatus)}
                 >
-                  {FOUND_STATUSES.map((st) => (
-                    <option key={st} value={st}>
-                      {st}
+                  {MODERATION_STATUSES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
                     </option>
                   ))}
                 </select>
-              ) : (
-                <select
-                  id="adm-item-status"
-                  value={lostStatus}
-                  onChange={(e) => setLostStatus(e.target.value as LostItemStatus)}
-                >
-                  {LOST_STATUSES.map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+              </div>
+
+              <div className="field form-full">
+                <label htmlFor="adm-item-mod-notes">Internal moderation / privacy redaction notes</label>
+                <input
+                  id="adm-item-mod-notes"
+                  value={moderationNotes}
+                  onChange={(e) => setModerationNotes(e.target.value)}
+                  placeholder="Optional staff note (e.g. Redacted phone number from public description)"
+                />
+              </div>
+            </>
           )}
 
           {kind === 'lost' && (

@@ -2,10 +2,17 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 import {
   CLAIM_STATUSES,
+  CLAIM_VERIFICATION_METHODS,
   CONTACT_PREFERENCES,
+  CUSTODY_EVENT_TYPES,
+  FLAG_REPORT_REASONS,
+  FLAG_REPORT_STATUSES,
+  FLAG_REPORT_TARGETS,
   FOUND_ITEM_STATUSES,
   ITEM_CATEGORIES,
+  LISTING_MODERATION_STATUSES,
   LOST_ITEM_STATUSES,
+  UNCLAIMED_POLICY_ACTIONS,
   USER_ROLES
 } from '../constants/domain';
 import { AppError } from './errors';
@@ -49,6 +56,10 @@ export const registerSchema = z.object({
     .string()
     .min(8, 'Password must be at least 8 characters long.')
     .max(128, 'Password is too long.')
+});
+
+export const adminCreateUserSchema = registerSchema.extend({
+  role: z.enum(USER_ROLES).default('student')
 });
 
 export const loginSchema = z.object({
@@ -116,7 +127,9 @@ export const updateLostItemSchema = z
     approximateTimeLost: z.string().trim().max(60).optional(),
     contactPreference: z.enum(CONTACT_PREFERENCES).optional(),
     imageUrl: optionalImageUrl,
-    status: z.enum(LOST_ITEM_STATUSES).optional()
+    status: z.enum(LOST_ITEM_STATUSES).optional(),
+    moderationStatus: z.enum(LISTING_MODERATION_STATUSES).optional(),
+    moderationNotes: z.string().trim().max(500).optional()
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Provide at least one field to update.'
@@ -135,6 +148,7 @@ export const createFoundItemSchema = z.object({
   locationRef: z.string().trim().optional(),
   dateFound: safeDateString,
   holdingLocation: z.string().trim().min(2, 'Holding location is required.').max(140),
+  storageBin: z.string().trim().max(80).optional(),
   imageUrl: optionalImageUrl
 });
 
@@ -148,12 +162,36 @@ export const updateFoundItemSchema = z
     locationRef: z.string().trim().nullable().optional(),
     dateFound: safeDateString.optional(),
     holdingLocation: z.string().trim().min(2).max(140).optional(),
+    storageBin: z.string().trim().max(80).optional(),
     imageUrl: optionalImageUrl,
-    status: z.enum(FOUND_ITEM_STATUSES).optional()
+    status: z.enum(FOUND_ITEM_STATUSES).optional(),
+    moderationStatus: z.enum(LISTING_MODERATION_STATUSES).optional(),
+    moderationNotes: z.string().trim().max(500).optional()
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Provide at least one field to update.'
   });
+
+export const custodyEventSchema = z.object({
+  eventType: z.enum(CUSTODY_EVENT_TYPES),
+  location: z.string().trim().min(2, 'Storage or transfer location is required.').max(140),
+  storageBin: z.string().trim().max(80).optional(),
+  recipientName: z.string().trim().max(120).optional(),
+  recipientId: z.string().trim().max(60).optional(),
+  notes: z.string().trim().max(500).optional()
+});
+
+export const unclaimedPolicySchema = z.object({
+  policyAction: z.enum(UNCLAIMED_POLICY_ACTIONS).refine((v) => v !== 'None', {
+    message: 'Select a university unclaimed-property policy action.'
+  }),
+  policyNotes: z
+    .string()
+    .trim()
+    .min(5, 'Please record policy notes explaining the unclaimed-property decision.')
+    .max(500),
+  archiveItem: z.boolean().optional().default(true)
+});
 
 export const createClaimSchema = z.object({
   foundItemId: z.string().trim().min(1, 'Found item ID is required.'),
@@ -176,7 +214,11 @@ export const reviewClaimSchema = z.object({
     .string()
     .trim()
     .min(3, 'Please record verification notes for the review decision.')
-    .max(1500)
+    .max(1500),
+  verificationMethod: z.enum(CLAIM_VERIFICATION_METHODS).optional(),
+  evidenceVerified: z.boolean().optional(),
+  decisionReason: z.string().trim().max(600).optional(),
+  outcome: z.string().trim().max(600).optional()
 });
 
 export const adminUpdateUserSchema = z
@@ -188,6 +230,27 @@ export const adminUpdateUserSchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: 'Provide at least one field to update.'
   });
+
+export const createFlagReportSchema = z.object({
+  targetType: z.enum(FLAG_REPORT_TARGETS),
+  targetId: z.string().trim().min(1, 'Target record ID is required.'),
+  reason: z.enum(FLAG_REPORT_REASONS),
+  details: z
+    .string()
+    .trim()
+    .min(5, 'Please describe the issue (at least 5 characters).')
+    .max(1200)
+});
+
+export const reviewFlagReportSchema = z.object({
+  status: z.enum(FLAG_REPORT_STATUSES),
+  resolutionNotes: z
+    .string()
+    .trim()
+    .min(3, 'Please record resolution notes (at least 3 characters).')
+    .max(1200),
+  actionTaken: z.string().trim().max(300).optional()
+});
 
 export const createLocationSchema = z.object({
   name: z.string().trim().min(2, 'Location name is required.').max(100),

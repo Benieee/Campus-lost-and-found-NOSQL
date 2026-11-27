@@ -1,5 +1,10 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
-import { CLAIM_STATUSES, ClaimStatus } from '../constants/domain';
+import {
+  CLAIM_STATUSES,
+  CLAIM_VERIFICATION_METHODS,
+  ClaimStatus,
+  ClaimVerificationMethod
+} from '../constants/domain';
 
 export interface IClaim extends Document {
   _id: Types.ObjectId;
@@ -10,6 +15,10 @@ export interface IClaim extends Document {
   explanation: string;
   identifyingProof: string;
   status: ClaimStatus;
+  verificationMethod?: ClaimVerificationMethod;
+  evidenceVerified: boolean;
+  decisionReason: string;
+  outcome: string;
   verificationNotes: string;
   reviewedBy?: Types.ObjectId;
   reviewedAt?: Date;
@@ -58,6 +67,27 @@ const claimSchema = new Schema<IClaim>(
       enum: CLAIM_STATUSES,
       default: 'Pending',
       required: true
+    },
+    verificationMethod: {
+      type: String,
+      enum: CLAIM_VERIFICATION_METHODS
+    },
+    evidenceVerified: {
+      type: Boolean,
+      default: false,
+      required: true
+    },
+    decisionReason: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 600
+    },
+    outcome: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 600
     },
     verificationNotes: {
       type: String,
