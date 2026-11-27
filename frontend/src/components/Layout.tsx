@@ -52,15 +52,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         Skip to main content
       </a>
 
-      <div className="project-ribbon" role="note">
-        <div className="container">
-          <span>
-            <strong>Proposed University Project:</strong> Academic prototype for Bugema University using fictional demonstration data. Not officially deployed by the university.
-          </span>
-          <Link to="/privacy">Privacy Notice</Link>
-        </div>
-      </div>
-
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>

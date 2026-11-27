@@ -92,28 +92,6 @@ textarea {
   margin: 0 auto;
 }
 
-/* Proposed-system notice ribbon */
-.project-ribbon {
-  background: #fef9e7;
-  border-bottom: 1px solid #f3e2a9;
-  color: #6b4e00;
-  font-size: 0.85rem;
-  padding: 8px 0;
-}
-
-.project-ribbon .container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.project-ribbon a {
-  text-decoration: underline;
-  font-weight: 600;
-}
-
 /* Header & Nav */
 .site-header {
   background: var(--navy-900);
