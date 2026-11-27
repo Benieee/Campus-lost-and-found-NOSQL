@@ -33,20 +33,22 @@ export function verifyAuthToken(token: string): AuthTokenPayload {
 }
 
 export function setAuthCookie(res: Response, token: string): void {
+  const sameSite = env.cookieSameSite;
   res.cookie(env.cookieName, token, {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: env.isProduction ? 'lax' : 'lax',
+    secure: env.isProduction || sameSite === 'none',
+    sameSite,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/'
   });
 }
 
 export function clearAuthCookie(res: Response): void {
+  const sameSite = env.cookieSameSite;
   res.clearCookie(env.cookieName, {
     httpOnly: true,
-    secure: env.isProduction,
-    sameSite: 'lax',
+    secure: env.isProduction || sameSite === 'none',
+    sameSite,
     path: '/'
   });
 }

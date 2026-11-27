@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ClaimStatus, FoundItemStatus, LostItemStatus } from '../types';
 
 type AnyStatus = LostItemStatus | FoundItemStatus | ClaimStatus | string;

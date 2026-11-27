@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Package, PlusCircle, Search } from 'lucide-react';
 import { locationsApi, lostItemsApi, resolveMediaUrl } from '../api/client';

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Calendar, Lock, MapPin, Package, Sparkles } from 'lucide-react';
 import { foundItemsApi, lostItemsApi, resolveMediaUrl } from '../api/client';

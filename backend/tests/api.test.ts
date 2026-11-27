@@ -1,9 +1,13 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import request from 'supertest';
 import { connectDatabase, disconnectDatabase } from '../src/config/database';
+import { env } from '../src/config/env';
 import { createApp } from '../src/app';
 import { AuditLog, Claim, FoundItem, Location, LostItem, User } from '../src/models';
+import { seedDatabase } from '../src/seed/seed';
 import { hashPassword } from '../src/utils/auth';
 
 process.env.NODE_ENV = 'test';
@@ -299,6 +303,9 @@ describe('Bugema Campus Lost & Found API', () => {
         .attach('image', validPng, { filename: '../../original.png', contentType: 'application/octet-stream' });
       expect(acceptRes.status).toBe(201);
       expect(acceptRes.body.imageUrl).toMatch(/^\/uploads\/[a-f0-9-]+\.png$/);
+
+      const savedFilename = path.basename(acceptRes.body.imageUrl);
+      await fs.unlink(path.join(env.uploadDir, savedFilename)).catch(() => {});
     });
   });
 
@@ -477,7 +484,7 @@ describe('Bugema Campus Lost & Found API', () => {
     });
   });
 
-  describe('Rate Limiting', () => {
+  describe('Rate Limiting & Fictional Seed Verification', () => {
     it('enforces rate limit on authentication endpoints', async () => {
       const strictApp = createApp({ authRateLimitMax: 2, claimRateLimitMax: 2 });
 
@@ -489,6 +496,39 @@ describe('Bugema Campus Lost & Found API', () => {
 
       expect(thirdAttempt.status).toBe(429);
       expect(thirdAttempt.body.code).toBe('RATE_LIMITED');
+    });
+
+    it('seeds at least 5 users, 5 lost items, 5 found items, and 5 claims with working fictional demo logins', async () => {
+      const seedResult = await seedDatabase({ reset: true });
+      expect(seedResult.skipped).toBe(false);
+
+      const [userCount, lostCount, foundCount, claimCount, locationCount] = await Promise.all([
+        User.countDocuments(),
+        LostItem.countDocuments(),
+        FoundItem.countDocuments(),
+        Claim.countDocuments(),
+        Location.countDocuments()
+      ]);
+
+      expect(userCount).toBeGreaterThanOrEqual(5);
+      expect(lostCount).toBeGreaterThanOrEqual(5);
+      expect(foundCount).toBeGreaterThanOrEqual(5);
+      expect(claimCount).toBeGreaterThanOrEqual(5);
+      expect(locationCount).toBeGreaterThanOrEqual(5);
+
+      const staffLogin = await request(app).post('/api/auth/login').send({
+        email: 'staff.admin@example.edu',
+        password: 'StaffDemo!2026'
+      });
+      expect(staffLogin.status).toBe(200);
+      expect(staffLogin.body.user.role).toBe('admin');
+
+      const studentLogin = await request(app).post('/api/auth/login').send({
+        email: 'amina.nakato@example.edu',
+        password: 'StudentDemo!2026'
+      });
+      expect(studentLogin.status).toBe(200);
+      expect(studentLogin.body.user.role).toBe('student');
     });
   });
 });

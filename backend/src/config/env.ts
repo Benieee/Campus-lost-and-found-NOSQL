@@ -26,6 +26,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || 'dev-only-change-before-production-bugema-lost-found-secret-2026',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   cookieName: 'blf_auth_token',
+  cookieSameSite: (process.env.COOKIE_SAME_SITE || 'lax') as 'lax' | 'strict' | 'none',
   frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
   uploadDir: path.resolve(process.cwd(), process.env.UPLOAD_DIR || 'uploads'),
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS || (isTest ? 4 : 12)),
