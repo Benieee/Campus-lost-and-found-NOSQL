@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { ApiError, assistantApi } from '../api/client';
+import { CursorTrackingBotOrb } from '../components/FloatingAiBot';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import type { AssistantDraft, AssistantReply } from '../types';
@@ -155,11 +156,7 @@ export function AssistantPage() {
         <div className="ai-stage">
           {/* Glowing Animated Bugema AI Orb + Greeting (matches uploaded dark-orb reference in Bugema colors) */}
           <div className="ai-hero-center">
-            <div className="bu-ai-orb" aria-hidden="true">
-              <div className="bu-ai-orb-core" />
-              <div className="bu-ai-orb-swirl" />
-              <div className="bu-ai-orb-shine" />
-            </div>
+            <CursorTrackingBotOrb size="lg" />
 
             <div className="ai-greeting-sub">Hi, {firstName}</div>
             <h1 className="ai-greeting-title">How can I help today?</h1>

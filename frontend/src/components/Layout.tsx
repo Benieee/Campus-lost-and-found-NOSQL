@@ -18,6 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { FloatingAiBot } from './FloatingAiBot';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Campus Portal',
@@ -311,6 +312,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span>{user ? (user.role === 'admin' ? 'Admin' : 'Account') : 'Sign in'}</span>
         </NavLink>
       </nav>
+      <FloatingAiBot />
     </div>
   );
 }

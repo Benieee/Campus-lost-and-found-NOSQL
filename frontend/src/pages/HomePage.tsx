@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { foundItemsApi, publicApi } from '../api/client';
 import { CampusClock } from '../components/CampusClock';
+import { CursorTrackingBotOrb } from '../components/FloatingAiBot';
 import { ItemThumbnail, SkeletonCards } from '../components/ItemThumbnail';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -245,11 +246,7 @@ export function HomePage() {
         <div className="container">
           <div className="ai-home-teaser">
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-              <div className="bu-ai-orb bu-ai-orb-sm" aria-hidden="true">
-                <div className="bu-ai-orb-core" />
-                <div className="bu-ai-orb-swirl" />
-                <div className="bu-ai-orb-shine" />
-              </div>
+              <CursorTrackingBotOrb size="sm" />
               <div>
                 <span className="badge" style={{ background: 'rgba(245,183,0,0.2)', color: '#fff6d6' }}>
                   AI STUDENT SUPPORT
