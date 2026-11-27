@@ -108,8 +108,10 @@ textarea {
 }
 
 .container {
-  width: min(1240px, calc(100% - clamp(24px, 4vw, 48px)));
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
+  padding-inline: clamp(16px, 2.5vw, 36px);
 }
 
 /* Header & Navigation */
@@ -128,8 +130,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  min-height: 66px;
+  gap: 16px;
+  min-height: 68px;
 }
 
 .brand {
@@ -173,8 +175,15 @@ textarea {
 .nav-desktop {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-width: 0;
+  justify-content: center;
+  flex: 1 1 auto;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-desktop::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -659,8 +668,14 @@ textarea {
 /* Item Cards Grid & Category-Aware Thumbnails */
 .items-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
+}
+
+@media (max-width: 1400px) {
+  .items-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .item-card {
@@ -1180,6 +1195,18 @@ tr:last-child td {
 }
 
 /* Responsive Breakpoints */
+@media (max-width: 1160px) {
+  .nav-desktop,
+  .nav-actions {
+    display: none;
+  }
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 1080px) {
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1198,15 +1225,6 @@ tr:last-child td {
 }
 
 @media (max-width: 960px) {
-  .nav-desktop,
-  .nav-actions {
-    display: none;
-  }
-  .mobile-menu-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
   .steps-grid {
     grid-template-columns: 1fr;
   }
