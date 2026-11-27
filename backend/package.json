@@ -9,6 +9,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:demo": "tsx scripts/dev-demo.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
