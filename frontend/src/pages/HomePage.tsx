@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { foundItemsApi, publicApi } from '../api/client';
 import { CampusClock } from '../components/CampusClock';
+import { HeroSearchAnimation } from '../components/CampusSearchBackdrop';
 import { CursorTrackingBotOrb } from '../components/FloatingAiBot';
 import { ItemThumbnail, SkeletonCards } from '../components/ItemThumbnail';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
@@ -60,6 +61,7 @@ export function HomePage() {
   return (
     <>
       <section className="hero">
+        <HeroSearchAnimation />
         <div className="container hero-grid">
           <div>
             <span className="badge badge-blue">Bugema University Campus Portal</span>

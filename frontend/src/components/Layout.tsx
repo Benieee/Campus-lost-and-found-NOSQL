@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { CampusSearchBackdrop } from './CampusSearchBackdrop';
 import { FloatingAiBot } from './FloatingAiBot';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -118,6 +119,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="workspace-shell">
+      <CampusSearchBackdrop />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
