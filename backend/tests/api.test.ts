@@ -481,6 +481,75 @@ describe('Bugema Campus Lost & Found API', () => {
       expect(dashRes.body.counts.foundItemsInStorage).toBe(1);
       expect(dashRes.body.counts.claimsAwaitingReview).toBe(0);
       expect(dashRes.body.counts.activeLocations).toBe(1);
+      expect(Array.isArray(dashRes.body.recentActivity)).toBe(true);
+    });
+
+    it('allows admin to upload/update/mark-recovered/delete items (including force-removing found items with open claims) while blocking students', async () => {
+      const { user: student, password: studentPass } = await createAccount({
+        email: 'regular.student@example.edu',
+        studentId: '24/BIT/BU/R/6001'
+      });
+      const { user: admin, password: adminPass } = await createAccount({
+        email: 'sys.admin@example.edu',
+        studentId: 'BU-STF-600',
+        role: 'admin'
+      });
+
+      const studentAgent = await loginAgent(student.email, studentPass);
+      const adminAgent = await loginAgent(admin.email, adminPass);
+
+      const lostCreate = await studentAgent.post('/api/lost-items').send({
+        itemName: 'Red USB Flash Drive',
+        category: 'Electronics',
+        description: '32GB red flash drive lost near ICT lab.',
+        identifyingDetails: 'Has a silver keychain loop',
+        lastKnownLocation: 'ICT Lab Block B',
+        dateLost: '2026-11-24',
+        contactPreference: 'email'
+      });
+      const lostId = lostCreate.body.item.id;
+
+      // Admin updates lost item details and marks it Claimed (found by owner)
+      const adminUpdateLost = await adminAgent.patch(`/api/lost-items/${lostId}`).send({
+        itemName: 'Red 32GB USB Flash Drive',
+        status: 'Claimed'
+      });
+      expect(adminUpdateLost.status).toBe(200);
+      expect(adminUpdateLost.body.item.status).toBe('Claimed');
+
+      // Admin creates a found item, student files a claim, student cannot delete it
+      const foundCreate = await adminAgent.post('/api/found-items').send({
+        itemName: 'Red USB Drive',
+        category: 'Electronics',
+        description: 'Red flash drive turned in at ICT desk.',
+        identifyingDetails: 'Silver keychain loop',
+        locationFound: 'ICT Lab Block B',
+        dateFound: '2026-11-24',
+        holdingLocation: 'ICT Lab Block B'
+      });
+      const foundId = foundCreate.body.item.id;
+
+      await studentAgent.post('/api/claims').send({
+        foundItemId: foundId,
+        explanation: 'I dropped my red USB flash drive near the ICT lab entrance.',
+        identifyingProof: 'Silver keychain loop attached'
+      });
+
+      const studentDeleteFound = await studentAgent.delete(`/api/found-items/${foundId}`);
+      expect(studentDeleteFound.status).toBe(403);
+
+      // Default delete rejects with 409 because active claim exists; force=true removes it and closes claim
+      const blockedDelete = await adminAgent.delete(`/api/found-items/${foundId}`);
+      expect(blockedDelete.status).toBe(409);
+
+      const forcedDelete = await adminAgent.delete(`/api/found-items/${foundId}?force=true`);
+      expect(forcedDelete.status).toBe(204);
+      expect(await FoundItem.findById(foundId)).toBeNull();
+
+      // Admin deletes the resolved lost report
+      const adminDeleteLost = await adminAgent.delete(`/api/lost-items/${lostId}`);
+      expect(adminDeleteLost.status).toBe(204);
+      expect(await LostItem.findById(lostId)).toBeNull();
     });
   });
 

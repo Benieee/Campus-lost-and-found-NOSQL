@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Calendar, Lock, MapPin, Package, Sparkles } from 'lucide-react';
-import { foundItemsApi, lostItemsApi, resolveMediaUrl } from '../api/client';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Lock,
+  MapPin,
+  Package,
+  Pencil,
+  Sparkles,
+  Trash2
+} from 'lucide-react';
+import { ApiError, foundItemsApi, locationsApi, lostItemsApi, resolveMediaUrl } from '../api/client';
+import { AdminItemModal } from '../components/AdminItemModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
-import type { FoundItem, LostItem, SuggestedMatchesResponse } from '../types';
+import type { CampusLocation, FoundItem, LostItem, SuggestedMatchesResponse } from '../types';
 
 export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
   const { id } = useParams<{ id: string }>();
@@ -16,45 +28,60 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
   const [foundItem, setFoundItem] = useState<FoundItem | null>(null);
   const [lostMatches, setLostMatches] = useState<SuggestedMatchesResponse<FoundItem> | null>(null);
   const [foundMatches, setFoundMatches] = useState<SuggestedMatchesResponse<LostItem> | null>(null);
+  const [locations, setLocations] = useState<CampusLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const [success, setSuccess] = useState('');
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    tone: 'primary' | 'danger' | 'success';
+    run: () => Promise<void>;
+  } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  useEffect(() => {
+  const loadItem = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError('');
-    if (kind === 'lost') {
-      lostItemsApi
-        .getById(id)
-        .then((res) => {
-          setLostItem(res.item);
-          setLostMatches(res.suggestedMatches);
-        })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load lost item.'))
-        .finally(() => setLoading(false));
-    } else {
-      foundItemsApi
-        .getById(id)
-        .then((res) => {
-          setFoundItem(res.item);
-          setFoundMatches(res.suggestedMatches);
-        })
-        .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load found item.'))
-        .finally(() => setLoading(false));
+    try {
+      if (kind === 'lost') {
+        const res = await lostItemsApi.getById(id);
+        setLostItem(res.item);
+        setLostMatches(res.suggestedMatches);
+      } else {
+        const res = await foundItemsApi.getById(id);
+        setFoundItem(res.item);
+        setFoundMatches(res.suggestedMatches);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Unable to load ${kind} item.`);
+    } finally {
+      setLoading(false);
     }
   }, [id, kind]);
 
-  const handleWithdraw = async () => {
-    if (!lostItem) return;
+  useEffect(() => {
+    void loadItem();
+    if (user?.role === 'admin') {
+      locationsApi.list({ includeInactive: true }).then((r) => setLocations(r.locations)).catch(() => {});
+    }
+  }, [loadItem, user?.role]);
+
+  const executeConfirm = async () => {
+    if (!confirmState) return;
     setActionBusy(true);
+    setError('');
     try {
-      const res = await lostItemsApi.update(lostItem.id, { status: 'Closed' });
-      setLostItem(res.item);
-      setConfirmWithdraw(false);
+      await confirmState.run();
+      setConfirmState(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to withdraw report.');
+      setError(err instanceof Error ? err.message : 'Action failed.');
+      setConfirmState(null);
     } finally {
       setActionBusy(false);
     }
@@ -72,12 +99,12 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
     );
   }
 
-  if (error || (kind === 'lost' ? !lostItem : !foundItem)) {
+  if (error && (kind === 'lost' ? !lostItem : !foundItem)) {
     return (
       <section className="page-section">
         <div className="container">
           <div className="alert alert-error" role="alert">
-            {error || 'Item record not found.'}
+            {error}
           </div>
           <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
             <ArrowLeft size={16} /> Go back
@@ -89,10 +116,78 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
 
   const isFound = kind === 'found';
   const item = isFound ? foundItem! : lostItem!;
+  const isAdmin = user?.role === 'admin';
   const canClaimFound =
     isFound &&
     (foundItem!.status === 'Stored' || foundItem!.status === 'Claim Pending') &&
     !foundItem!.isMine;
+
+  const requestAdminMarkRecovered = () => {
+    setConfirmState({
+      open: true,
+      title: isFound ? 'Mark item returned to owner?' : 'Mark lost item as found by owner?',
+      message: isFound
+        ? `Update "${item.itemName}" to Returned?`
+        : `Update "${item.itemName}" to Claimed (recovered by owner)?`,
+      confirmLabel: isFound ? 'Mark Returned' : 'Mark Found by Owner',
+      tone: 'success',
+      run: async () => {
+        if (isFound) {
+          const res = await foundItemsApi.update(item.id, { status: 'Returned' });
+          setFoundItem(res.item);
+          setSuccess('Item marked as Returned to owner.');
+        } else {
+          const res = await lostItemsApi.update(item.id, { status: 'Claimed' });
+          setLostItem(res.item);
+          setSuccess('Lost report marked as Claimed (found by owner).');
+        }
+      }
+    });
+  };
+
+  const requestAdminDelete = () => {
+    setConfirmState({
+      open: true,
+      title: `Delete ${isFound ? 'found item' : 'lost report'}?`,
+      message: `Permanently remove "${item.itemName}" from the system? This action is recorded in the audit log and cannot be undone.`,
+      confirmLabel: 'Delete Item',
+      tone: 'danger',
+      run: async () => {
+        if (isFound) {
+          try {
+            await foundItemsApi.remove(item.id, false);
+            navigate('/admin', { replace: true });
+          } catch (err) {
+            if (err instanceof ApiError && err.code === 'ACTIVE_CLAIMS_EXIST') {
+              await foundItemsApi.remove(item.id, true);
+              navigate('/admin', { replace: true });
+              return;
+            }
+            throw err;
+          }
+        } else {
+          await lostItemsApi.remove(item.id);
+          navigate('/admin', { replace: true });
+        }
+      }
+    });
+  };
+
+  const requestOwnerWithdraw = () => {
+    if (!lostItem) return;
+    setConfirmState({
+      open: true,
+      title: 'Withdraw lost-item report?',
+      message: 'Withdrawing marks this report as Closed. You can still view it in your submission history.',
+      confirmLabel: 'Yes, withdraw report',
+      tone: 'danger',
+      run: async () => {
+        const res = await lostItemsApi.update(lostItem.id, { status: 'Closed' });
+        setLostItem(res.item);
+        setSuccess('Your lost report has been withdrawn.');
+      }
+    });
+  };
 
   return (
     <section className="page-section">
@@ -102,6 +197,17 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
             <ArrowLeft size={15} /> Back to {isFound ? 'Found Items' : 'Lost Reports'}
           </Link>
         </div>
+
+        {error && (
+          <div className="alert alert-error" role="alert">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="alert alert-success" role="status">
+            {success}
+          </div>
+        )}
 
         <div className="detail-layout">
           <div className="card">
@@ -191,17 +297,38 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
                   </Link>
                 ))}
 
-              {!isFound && lostItem!.isMine && (lostItem!.status === 'Missing' || lostItem!.status === 'Matched') && (
+              {!isFound && !isAdmin && lostItem!.isMine && (lostItem!.status === 'Missing' || lostItem!.status === 'Matched') && (
                 <>
                   <Link to={`/report-lost?edit=${lostItem!.id}`} className="btn btn-secondary">
                     Edit Report
                   </Link>
+                  <button type="button" className="btn btn-danger" onClick={requestOwnerWithdraw}>
+                    Withdraw Report
+                  </button>
+                </>
+              )}
+
+              {isAdmin && (
+                <>
                   <button
                     type="button"
-                    className="btn btn-danger"
-                    onClick={() => setConfirmWithdraw(true)}
+                    className="btn btn-secondary"
+                    onClick={() => setEditModalOpen(true)}
                   >
-                    Withdraw Report
+                    <Pencil size={15} /> Admin Edit / Upload Photo
+                  </button>
+                  {((isFound && foundItem!.status !== 'Returned') ||
+                    (!isFound && lostItem!.status !== 'Claimed')) && (
+                    <button
+                      type="button"
+                      className="btn btn-success"
+                      onClick={requestAdminMarkRecovered}
+                    >
+                      <CheckCircle2 size={15} /> {isFound ? 'Mark Returned to Owner' : 'Mark Found by Owner'}
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-danger" onClick={requestAdminDelete}>
+                    <Trash2 size={15} /> Delete Item
                   </button>
                 </>
               )}
@@ -276,15 +403,31 @@ export function ItemDetailPage({ kind }: { kind: 'lost' | 'found' }) {
           </aside>
         </div>
 
+        {isAdmin && (
+          <AdminItemModal
+            open={editModalOpen}
+            kind={kind}
+            mode="edit"
+            initialLost={lostItem}
+            initialFound={foundItem}
+            locations={locations}
+            onClose={() => setEditModalOpen(false)}
+            onSaved={(msg) => {
+              setSuccess(msg);
+              void loadItem();
+            }}
+          />
+        )}
+
         <ConfirmDialog
-          open={confirmWithdraw}
-          title="Withdraw lost-item report?"
-          message="Withdrawing marks this report as Closed. You can still view it in your submission history."
-          confirmLabel="Yes, withdraw report"
-          tone="danger"
+          open={Boolean(confirmState?.open)}
+          title={confirmState?.title || ''}
+          message={confirmState?.message || ''}
+          confirmLabel={confirmState?.confirmLabel || 'Confirm'}
+          tone={confirmState?.tone || 'primary'}
           busy={actionBusy}
-          onConfirm={handleWithdraw}
-          onCancel={() => setConfirmWithdraw(false)}
+          onConfirm={executeConfirm}
+          onCancel={() => setConfirmState(null)}
         />
       </div>
     </section>

@@ -167,7 +167,8 @@ export const foundItemsApi = {
     request<{ item: FoundItem }>('/found-items', { method: 'POST', body: JSON.stringify(payload) }),
   update: (id: string, payload: Record<string, unknown>) =>
     request<{ item: FoundItem }>(`/found-items/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  remove: (id: string) => request<void>(`/found-items/${id}`, { method: 'DELETE' })
+  remove: (id: string, force = false) =>
+    request<void>(`/found-items/${id}${force ? '?force=true' : ''}`, { method: 'DELETE' })
 };
 
 export const claimsApi = {
@@ -200,6 +201,7 @@ export const adminApi = {
       };
       recentReturns: FoundItem[];
       awaitingClaims: Claim[];
+      recentActivity: AuditLogEntry[];
       suggestedMatches: { disclaimer: string; matches: AdminMatchPair[] };
     }>('/admin/dashboard'),
   users: (params: { q?: string; role?: string; page?: number; limit?: number } = {}) =>

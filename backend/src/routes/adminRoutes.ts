@@ -30,6 +30,7 @@ export function createAdminRouter() {
         activeLocations,
         recentReturnedItems,
         pendingClaimsList,
+        recentActivityLogs,
         suggestedMatches
       ] = await Promise.all([
         LostItem.countDocuments({ status: { $in: ['Missing', 'Matched'] } }),
@@ -48,6 +49,11 @@ export function createAdminRouter() {
           .populate('foundItem')
           .populate('claimant', 'fullName studentId email phone course role')
           .lean(),
+        AuditLog.find({})
+          .sort({ createdAt: -1 })
+          .limit(8)
+          .populate('actor', 'fullName studentId role')
+          .lean(),
         getAdminSuggestedMatchPairs(viewer, 6)
       ]);
 
@@ -65,6 +71,24 @@ export function createAdminRouter() {
         },
         recentReturns: recentReturnedItems.map((item) => serializeFoundItem(item, viewer)),
         awaitingClaims: pendingClaimsList.map((claim) => serializeClaim(claim, viewer)),
+        recentActivity: recentActivityLogs.map((log: any) => ({
+          id: String(log._id),
+          action: log.action,
+          entityType: log.entityType,
+          entityId: String(log.entityId),
+          summary: log.summary,
+          actorRole: log.actorRole,
+          actor:
+            log.actor && typeof log.actor === 'object' && 'fullName' in log.actor
+              ? {
+                  id: String(log.actor._id),
+                  fullName: log.actor.fullName,
+                  studentId: log.actor.studentId,
+                  role: log.actor.role
+                }
+              : undefined,
+          createdAt: log.createdAt
+        })),
         suggestedMatches
       });
     } catch (err) {

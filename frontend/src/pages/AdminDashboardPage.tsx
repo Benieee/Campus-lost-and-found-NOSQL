@@ -1,7 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Sparkles } from 'lucide-react';
-import { adminApi, claimsApi, foundItemsApi, locationsApi, lostItemsApi } from '../api/client';
+import {
+  Activity,
+  CheckCircle2,
+  Pencil,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload
+} from 'lucide-react';
+import { adminApi, ApiError, claimsApi, foundItemsApi, locationsApi, lostItemsApi } from '../api/client';
+import { AdminItemModal } from '../components/AdminItemModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Pagination } from '../components/Pagination';
 import { formatDate, formatDateTime, StatusBadge } from '../components/StatusBadge';
@@ -32,6 +42,14 @@ interface PendingAction {
   run: () => Promise<void>;
 }
 
+interface ItemModalState {
+  open: boolean;
+  kind: 'lost' | 'found';
+  mode: 'create' | 'edit';
+  lostItem?: LostItem | null;
+  foundItem?: FoundItem | null;
+}
+
 export function AdminDashboardPage() {
   const [tab, setTab] = useState<AdminTab>('overview');
   const [error, setError] = useState('');
@@ -39,7 +57,13 @@ export function AdminDashboardPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  // Overview state
+  const [itemModal, setItemModal] = useState<ItemModalState>({
+    open: false,
+    kind: 'found',
+    mode: 'create'
+  });
+
+  // Overview / Monitoring state
   const [counts, setCounts] = useState({
     openLostReports: 0,
     foundItemsInStorage: 0,
@@ -53,15 +77,22 @@ export function AdminDashboardPage() {
   });
   const [recentReturns, setRecentReturns] = useState<FoundItem[]>([]);
   const [awaitingClaims, setAwaitingClaims] = useState<Claim[]>([]);
+  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
   const [suggestedMatches, setSuggestedMatches] = useState<{ disclaimer: string; matches: AdminMatchPair[] } | null>(null);
 
-  // Management lists
+  // Management lists & filters
   const [claims, setClaims] = useState<Claim[]>([]);
   const [claimsFilter, setClaimsFilter] = useState('');
   const [claimNotes, setClaimNotes] = useState<Record<string, string>>({});
 
   const [lostItems, setLostItems] = useState<LostItem[]>([]);
+  const [lostSearch, setLostSearch] = useState('');
+  const [lostStatusFilter, setLostStatusFilter] = useState('');
+
   const [foundItems, setFoundItems] = useState<FoundItem[]>([]);
+  const [foundSearch, setFoundSearch] = useState('');
+  const [foundStatusFilter, setFoundStatusFilter] = useState('');
+
   const [users, setUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<CampusLocation[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -78,6 +109,15 @@ export function AdminDashboardPage() {
 
   const [loading, setLoading] = useState(true);
 
+  const loadLocations = useCallback(async () => {
+    try {
+      const res = await locationsApi.list({ includeInactive: true });
+      setLocations(res.locations);
+    } catch {
+      // ignore background preset load error
+    }
+  }, []);
+
   const loadDashboard = useCallback(async () => {
     setError('');
     try {
@@ -85,6 +125,7 @@ export function AdminDashboardPage() {
       setCounts(data.counts);
       setRecentReturns(data.recentReturns);
       setAwaitingClaims(data.awaitingClaims);
+      setRecentActivity(data.recentActivity || []);
       setSuggestedMatches(data.suggestedMatches);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load administration metrics.');
@@ -102,17 +143,24 @@ export function AdminDashboardPage() {
         const res = await claimsApi.list({ status: claimsFilter || undefined, limit: 30 });
         setClaims(res.claims);
       } else if (tab === 'lost') {
-        const res = await lostItemsApi.list({ limit: 30 });
+        const res = await lostItemsApi.list({
+          q: lostSearch.trim() || undefined,
+          status: lostStatusFilter || undefined,
+          limit: 50
+        });
         setLostItems(res.items);
       } else if (tab === 'found') {
-        const res = await foundItemsApi.list({ limit: 30 });
+        const res = await foundItemsApi.list({
+          q: foundSearch.trim() || undefined,
+          status: foundStatusFilter || undefined,
+          limit: 50
+        });
         setFoundItems(res.items);
       } else if (tab === 'users') {
         const res = await adminApi.users({ limit: 50 });
         setUsers(res.users);
       } else if (tab === 'locations') {
-        const res = await locationsApi.list({ includeInactive: true });
-        setLocations(res.locations);
+        await loadLocations();
       } else if (tab === 'audit') {
         const res = await adminApi.auditLogs({ page: auditPage, limit: 15 });
         setAuditLogs(res.logs);
@@ -121,11 +169,12 @@ export function AdminDashboardPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load management records.');
     }
-  }, [tab, claimsFilter, auditPage, loadDashboard]);
+  }, [tab, claimsFilter, lostSearch, lostStatusFilter, foundSearch, foundStatusFilter, auditPage, loadDashboard, loadLocations]);
 
   useEffect(() => {
     void loadDashboard();
-  }, [loadDashboard]);
+    void loadLocations();
+  }, [loadDashboard, loadLocations]);
 
   useEffect(() => {
     void loadTabData();
@@ -173,10 +222,10 @@ export function AdminDashboardPage() {
   const requestLostStatusChange = (item: LostItem, nextStatus: LostItemStatus) => {
     if (item.status === nextStatus) return;
     setPendingAction({
-      title: `Update lost report status?`,
+      title: nextStatus === 'Claimed' ? 'Mark lost item as found by owner?' : 'Update lost report status?',
       message: `Change "${item.itemName}" from ${item.status} to ${nextStatus}? This change will be recorded in the audit log.`,
-      confirmLabel: 'Update status',
-      tone: 'primary',
+      confirmLabel: nextStatus === 'Claimed' ? 'Mark Found by Owner' : 'Update status',
+      tone: nextStatus === 'Claimed' ? 'success' : 'primary',
       run: async () => {
         await lostItemsApi.update(item.id, { status: nextStatus });
         setSuccess(`Lost report "${item.itemName}" marked ${nextStatus}.`);
@@ -184,16 +233,59 @@ export function AdminDashboardPage() {
     });
   };
 
+  const requestDeleteLostItem = (item: LostItem) => {
+    setPendingAction({
+      title: 'Delete lost-item report?',
+      message: `Permanently remove "${item.itemName}" from the system (for example, if the owner has already found it or it is a duplicate)? This action cannot be undone and is recorded in the audit log.`,
+      confirmLabel: 'Delete Report',
+      tone: 'danger',
+      run: async () => {
+        await lostItemsApi.remove(item.id);
+        setSuccess(`Removed lost report "${item.itemName}".`);
+      }
+    });
+  };
+
   const requestFoundStatusChange = (item: FoundItem, nextStatus: FoundItemStatus) => {
     if (item.status === nextStatus) return;
     setPendingAction({
-      title: `Update found item status?`,
-      message: `Change "${item.itemName}" from ${item.status} to ${nextStatus}?`,
-      confirmLabel: 'Update status',
-      tone: nextStatus === 'Archived' ? 'danger' : 'primary',
+      title: nextStatus === 'Returned' ? 'Mark item returned to owner?' : 'Update found item status?',
+      message: `Change "${item.itemName}" from ${item.status} to ${nextStatus}? This change will be logged in the audit trail.`,
+      confirmLabel: nextStatus === 'Returned' ? 'Mark Returned' : 'Update status',
+      tone: nextStatus === 'Archived' ? 'danger' : nextStatus === 'Returned' ? 'success' : 'primary',
       run: async () => {
         await foundItemsApi.update(item.id, { status: nextStatus });
         setSuccess(`Found item "${item.itemName}" marked ${nextStatus}.`);
+      }
+    });
+  };
+
+  const requestDeleteFoundItem = (item: FoundItem) => {
+    setPendingAction({
+      title: 'Delete found item?',
+      message: `Permanently remove "${item.itemName}" from found inventory (e.g., if it has been recovered by the owner or logged in error)?`,
+      confirmLabel: 'Remove Item',
+      tone: 'danger',
+      run: async () => {
+        try {
+          await foundItemsApi.remove(item.id, false);
+          setSuccess(`Removed found item "${item.itemName}".`);
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'ACTIVE_CLAIMS_EXIST') {
+            setPendingAction({
+              title: 'Active claims exist — force remove item?',
+              message: `"${item.itemName}" still has pending claim(s). Confirming forced removal will close those open claims and permanently delete the item record.`,
+              confirmLabel: 'Force Remove Item',
+              tone: 'danger',
+              run: async () => {
+                await foundItemsApi.remove(item.id, true);
+                setSuccess(`Force-removed found item "${item.itemName}" and closed open claims.`);
+              }
+            });
+            throw new Error('Item has active claims. Review the confirmation prompt to force remove.');
+          }
+          throw err;
+        }
       }
     });
   };
@@ -241,14 +333,38 @@ export function AdminDashboardPage() {
         <div className="page-header">
           <div>
             <span className="badge badge-green">
-              <ShieldCheck size={13} /> Authorized Staff Workspace
+              <ShieldCheck size={13} /> System Monitor &amp; Admin Control Center
             </span>
-            <h1 style={{ marginTop: 8 }}>Staff Administration Dashboard</h1>
-            <p>Review ownership claims, manage campus inventory, locations, users, and audit logs.</p>
+            <h1 style={{ marginTop: 8 }}>Admin Dashboard</h1>
+            <p>
+              Monitor campus activity, upload/update/remove lost &amp; found items, mark items recovered
+              by owners, and review ownership claims.
+            </p>
           </div>
-          <Link to="/report-found" className="btn btn-primary btn-sm">
-            Log New Found Item
-          </Link>
+          <div className="row-gap">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setItemModal({ open: true, kind: 'found', mode: 'create' })}
+            >
+              <Upload size={15} /> Upload Found Item
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setItemModal({ open: true, kind: 'lost', mode: 'create' })}
+            >
+              <Upload size={15} /> Upload Lost Report
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => void Promise.all([loadDashboard(), loadTabData()])}
+              title="Refresh dashboard data"
+            >
+              <RefreshCw size={15} /> Refresh
+            </button>
+          </div>
         </div>
 
         <div className="kpi-grid">
@@ -288,10 +404,10 @@ export function AdminDashboardPage() {
         <div className="tabs" role="tablist">
           {(
             [
-              ['overview', 'Overview & Matches'],
+              ['overview', 'System Monitor'],
               ['claims', `Claims (${counts.claimsAwaitingReview} open)`],
-              ['lost', 'Lost Reports'],
-              ['found', 'Found Inventory'],
+              ['lost', 'Manage Lost Reports'],
+              ['found', 'Manage Found Inventory'],
               ['users', `Users (${counts.totalStudents + counts.totalStaff})`],
               ['locations', `Locations (${counts.activeLocations})`],
               ['audit', 'Audit Trail']
@@ -347,6 +463,39 @@ export function AdminDashboardPage() {
               </div>
 
               <div className="card">
+                <div className="row-between" style={{ marginBottom: 12 }}>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Activity size={18} color="#157347" /> Live System Activity Monitor
+                  </h2>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('audit')}>
+                    Full Audit Log
+                  </button>
+                </div>
+                {recentActivity.length === 0 ? (
+                  <p className="muted small">No recent system activity logged.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {recentActivity.slice(0, 6).map((log) => (
+                      <div key={log.id} className="card card-compact" style={{ padding: 12 }}>
+                        <div className="row-between">
+                          <span className="badge badge-slate">{log.action}</span>
+                          <span className="muted small">{formatDateTime(log.createdAt)}</span>
+                        </div>
+                        <div className="small" style={{ marginTop: 6 }}>
+                          {log.summary}
+                        </div>
+                        <div className="muted small" style={{ marginTop: 2 }}>
+                          By {log.actor?.fullName || 'System'} ({log.actorRole})
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="two-col">
+              <div className="card">
                 <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: '1.1rem' }}>Recently Returned Items</h2>
                 {recentReturns.length === 0 ? (
                   <p className="muted small">No returned items recorded yet.</p>
@@ -366,54 +515,41 @@ export function AdminDashboardPage() {
                   </div>
                 )}
               </div>
-            </div>
 
-            <div className="card">
-              <div className="row-gap" style={{ marginBottom: 10 }}>
-                <Sparkles size={18} color="#1d63dc" />
-                <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Suggested Lost / Found Matches</h2>
-              </div>
-              {suggestedMatches && (
-                <div className="alert alert-warning small">{suggestedMatches.disclaimer}</div>
-              )}
-              {!suggestedMatches || suggestedMatches.matches.length === 0 ? (
-                <p className="muted small">No high-confidence cross-matches currently detected.</p>
-              ) : (
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Lost Report</th>
-                        <th>Found Item</th>
-                        <th>Match Score</th>
-                        <th>Match Basis</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {suggestedMatches.matches.map((pair, idx) => (
-                        <tr key={`${pair.lostItem.id}-${pair.foundItem.id}-${idx}`}>
-                          <td>
-                            <Link to={`/lost/${pair.lostItem.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
-                              {pair.lostItem.itemName}
-                            </Link>
-                            <div className="muted small">{pair.lostItem.lastKnownLocation}</div>
-                          </td>
-                          <td>
-                            <Link to={`/found/${pair.foundItem.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
-                              {pair.foundItem.itemName}
-                            </Link>
-                            <div className="muted small">{pair.foundItem.holdingLocation}</div>
-                          </td>
-                          <td>
-                            <span className="badge badge-purple">{pair.score}%</span>
-                          </td>
-                          <td className="small">{pair.reasons.join(' · ')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="card">
+                <div className="row-gap" style={{ marginBottom: 10 }}>
+                  <Sparkles size={18} color="#1d63dc" />
+                  <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Suggested Lost / Found Matches</h2>
                 </div>
-              )}
+                {suggestedMatches && (
+                  <div className="alert alert-warning small">{suggestedMatches.disclaimer}</div>
+                )}
+                {!suggestedMatches || suggestedMatches.matches.length === 0 ? (
+                  <p className="muted small">No high-confidence cross-matches currently detected.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {suggestedMatches.matches.map((pair, idx) => (
+                      <div key={`${pair.lostItem.id}-${pair.foundItem.id}-${idx}`} className="card card-compact">
+                        <div className="row-between">
+                          <span className="badge badge-purple">{pair.score}% match</span>
+                          <span className="muted small">{pair.reasons.join(' · ')}</span>
+                        </div>
+                        <div className="small" style={{ marginTop: 6 }}>
+                          <strong>Lost:</strong>{' '}
+                          <Link to={`/lost/${pair.lostItem.id}`} style={{ color: '#1d63dc' }}>
+                            {pair.lostItem.itemName}
+                          </Link>
+                          <br />
+                          <strong>Found:</strong>{' '}
+                          <Link to={`/found/${pair.foundItem.id}`} style={{ color: '#1d63dc' }}>
+                            {pair.foundItem.itemName}
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : tab === 'claims' ? (
@@ -536,111 +672,251 @@ export function AdminDashboardPage() {
             )}
           </div>
         ) : tab === 'lost' ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item &amp; Private Notes</th>
-                  <th>Owner</th>
-                  <th>Location / Date</th>
-                  <th>Status</th>
-                  <th>Update Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lostItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <Link to={`/lost/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
-                        {item.itemName}
-                      </Link>
-                      <div className="muted small">{item.category}</div>
-                      {item.identifyingDetails && (
-                        <div className="small" style={{ marginTop: 4 }}>
-                          <em>Private:</em> {item.identifyingDetails}
-                        </div>
-                      )}
-                    </td>
-                    <td className="small">
-                      {item.owner?.fullName}
-                      <div className="muted">{item.owner?.studentId}</div>
-                    </td>
-                    <td className="small">
-                      {item.lastKnownLocation}
-                      <div className="muted">{formatDate(item.dateLost)}</div>
-                    </td>
-                    <td>
-                      <StatusBadge status={item.status} />
-                    </td>
-                    <td>
-                      <select
-                        aria-label={`Change status for ${item.itemName}`}
-                        value={item.status}
-                        onChange={(e) => requestLostStatusChange(item, e.target.value as LostItemStatus)}
-                      >
-                        {LOST_STATUSES.map((st) => (
-                          <option key={st} value={st}>
-                            {st}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <div className="row-between" style={{ marginBottom: 14 }}>
+              <div className="row-gap">
+                <input
+                  type="search"
+                  aria-label="Search lost reports"
+                  placeholder="Search lost items…"
+                  value={lostSearch}
+                  onChange={(e) => setLostSearch(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                />
+                <select
+                  aria-label="Filter lost reports by status"
+                  value={lostStatusFilter}
+                  onChange={(e) => setLostStatusFilter(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">All statuses</option>
+                  {LOST_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setItemModal({ open: true, kind: 'lost', mode: 'create' })}
+              >
+                <Upload size={15} /> Upload Lost Report
+              </button>
+            </div>
+
+            {lostItems.length === 0 ? (
+              <div className="empty-state">No lost-item reports match your filter.</div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item &amp; Private Notes</th>
+                      <th>Owner</th>
+                      <th>Location / Date</th>
+                      <th>Status</th>
+                      <th>Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lostItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <Link to={`/lost/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
+                            {item.itemName}
+                          </Link>
+                          <div className="muted small">{item.category}</div>
+                          {item.identifyingDetails && (
+                            <div className="small" style={{ marginTop: 4 }}>
+                              <em>Private:</em> {item.identifyingDetails}
+                            </div>
+                          )}
+                        </td>
+                        <td className="small">
+                          {item.owner?.fullName}
+                          <div className="muted">{item.owner?.studentId}</div>
+                        </td>
+                        <td className="small">
+                          {item.lastKnownLocation}
+                          <div className="muted">{formatDate(item.dateLost)}</div>
+                        </td>
+                        <td>
+                          <StatusBadge status={item.status} />
+                          <div style={{ marginTop: 6 }}>
+                            <select
+                              aria-label={`Change status for ${item.itemName}`}
+                              value={item.status}
+                              onChange={(e) =>
+                                requestLostStatusChange(item, e.target.value as LostItemStatus)
+                              }
+                            >
+                              {LOST_STATUSES.map((st) => (
+                                <option key={st} value={st}>
+                                  {st}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="row-gap">
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() =>
+                                setItemModal({ open: true, kind: 'lost', mode: 'edit', lostItem: item })
+                              }
+                            >
+                              <Pencil size={14} /> Edit / Photo
+                            </button>
+                            {item.status !== 'Claimed' && (
+                              <button
+                                type="button"
+                                className="btn btn-success btn-sm"
+                                onClick={() => requestLostStatusChange(item, 'Claimed')}
+                              >
+                                <CheckCircle2 size={14} /> Found by Owner
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() => requestDeleteLostItem(item)}
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         ) : tab === 'found' ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Item &amp; Private Verification Marks</th>
-                  <th>Found At / Holding Desk</th>
-                  <th>Date Found</th>
-                  <th>Status</th>
-                  <th>Update Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {foundItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <Link to={`/found/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
-                        {item.itemName}
-                      </Link>
-                      <div className="muted small">{item.category}</div>
-                      {item.identifyingDetails && (
-                        <div className="small" style={{ marginTop: 4 }}>
-                          <em>Private:</em> {item.identifyingDetails}
-                        </div>
-                      )}
-                    </td>
-                    <td className="small">
-                      {item.locationFound}
-                      <div className="muted">Held: {item.holdingLocation}</div>
-                    </td>
-                    <td className="small">{formatDate(item.dateFound)}</td>
-                    <td>
-                      <StatusBadge status={item.status} />
-                    </td>
-                    <td>
-                      <select
-                        aria-label={`Change status for ${item.itemName}`}
-                        value={item.status}
-                        onChange={(e) => requestFoundStatusChange(item, e.target.value as FoundItemStatus)}
-                      >
-                        {FOUND_STATUSES.map((st) => (
-                          <option key={st} value={st}>
-                            {st}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <div className="row-between" style={{ marginBottom: 14 }}>
+              <div className="row-gap">
+                <input
+                  type="search"
+                  aria-label="Search found items"
+                  placeholder="Search found items…"
+                  value={foundSearch}
+                  onChange={(e) => setFoundSearch(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                />
+                <select
+                  aria-label="Filter found items by status"
+                  value={foundStatusFilter}
+                  onChange={(e) => setFoundStatusFilter(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">All statuses</option>
+                  {FOUND_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setItemModal({ open: true, kind: 'found', mode: 'create' })}
+              >
+                <Upload size={15} /> Upload Found Item
+              </button>
+            </div>
+
+            {foundItems.length === 0 ? (
+              <div className="empty-state">No found items match your filter.</div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item &amp; Private Verification Marks</th>
+                      <th>Found At / Holding Desk</th>
+                      <th>Date Found</th>
+                      <th>Status</th>
+                      <th>Admin Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {foundItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <Link to={`/found/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
+                            {item.itemName}
+                          </Link>
+                          <div className="muted small">{item.category}</div>
+                          {item.identifyingDetails && (
+                            <div className="small" style={{ marginTop: 4 }}>
+                              <em>Private:</em> {item.identifyingDetails}
+                            </div>
+                          )}
+                        </td>
+                        <td className="small">
+                          {item.locationFound}
+                          <div className="muted">Held: {item.holdingLocation}</div>
+                        </td>
+                        <td className="small">{formatDate(item.dateFound)}</td>
+                        <td>
+                          <StatusBadge status={item.status} />
+                          <div style={{ marginTop: 6 }}>
+                            <select
+                              aria-label={`Change status for ${item.itemName}`}
+                              value={item.status}
+                              onChange={(e) =>
+                                requestFoundStatusChange(item, e.target.value as FoundItemStatus)
+                              }
+                            >
+                              {FOUND_STATUSES.map((st) => (
+                                <option key={st} value={st}>
+                                  {st}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="row-gap">
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() =>
+                                setItemModal({ open: true, kind: 'found', mode: 'edit', foundItem: item })
+                              }
+                            >
+                              <Pencil size={14} /> Edit / Photo
+                            </button>
+                            {item.status !== 'Returned' && (
+                              <button
+                                type="button"
+                                className="btn btn-success btn-sm"
+                                onClick={() => requestFoundStatusChange(item, 'Returned')}
+                              >
+                                <CheckCircle2 size={14} /> Returned to Owner
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() => requestDeleteFoundItem(item)}
+                            >
+                              <Trash2 size={14} /> Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         ) : tab === 'users' ? (
           <div className="table-wrap">
@@ -683,7 +959,7 @@ export function AdminDashboardPage() {
                             requestUserChange(u, { role: u.role === 'admin' ? 'student' : 'admin' })
                           }
                         >
-                          Make {u.role === 'admin' ? 'Student' : 'Staff'}
+                          Make {u.role === 'admin' ? 'Student' : 'Admin'}
                         </button>
                         <button
                           type="button"
@@ -844,6 +1120,20 @@ export function AdminDashboardPage() {
             <Pagination pagination={auditPagination} onPageChange={setAuditPage} />
           </div>
         )}
+
+        <AdminItemModal
+          open={itemModal.open}
+          kind={itemModal.kind}
+          mode={itemModal.mode}
+          initialLost={itemModal.lostItem}
+          initialFound={itemModal.foundItem}
+          locations={locations}
+          onClose={() => setItemModal((prev) => ({ ...prev, open: false }))}
+          onSaved={(msg) => {
+            setSuccess(msg);
+            void Promise.all([loadDashboard(), loadTabData()]);
+          }}
+        />
 
         <ConfirmDialog
           open={Boolean(pendingAction)}

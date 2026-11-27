@@ -238,11 +238,27 @@ export function createFoundItemRouter() {
         foundItem: id,
         status: { $in: ['Pending', 'Under Review'] }
       });
-      if (activeClaims > 0) {
+      const forceDelete = req.query.force === 'true';
+
+      if (activeClaims > 0 && !forceDelete) {
         throw new AppError(
           409,
-          'Cannot delete a found item while active ownership claims exist. Resolve or reject claims first.',
+          'Cannot delete a found item while active ownership claims exist. Resolve claims first or confirm forced removal.',
           'ACTIVE_CLAIMS_EXIST'
+        );
+      }
+
+      if (activeClaims > 0 && forceDelete) {
+        await Claim.updateMany(
+          { foundItem: id, status: { $in: ['Pending', 'Under Review'] } },
+          {
+            $set: {
+              status: 'Rejected',
+              verificationNotes: 'Closed automatically when the item was removed by an administrator.',
+              reviewedBy: assertObjectId(req.user!.id, 'reviewer ID'),
+              reviewedAt: new Date()
+            }
+          }
         );
       }
 
@@ -253,7 +269,8 @@ export function createFoundItemRouter() {
         action: 'FOUND_ITEM_DELETED',
         entityType: 'FoundItem',
         entityId: item._id,
-        summary: `Deleted found item "${item.itemName}".`
+        summary: `Deleted found item "${item.itemName}"${forceDelete && activeClaims > 0 ? ` (closed ${activeClaims} open claim(s))` : ''}.`,
+        metadata: { previousStatus: item.status, forceDelete }
       });
 
       res.status(204).end();
