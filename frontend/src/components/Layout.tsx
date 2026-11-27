@@ -1,209 +1,289 @@
 import React, { useEffect, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   ClipboardList,
   Home,
   LayoutDashboard,
+  LogIn,
   LogOut,
   Menu,
   PackageCheck,
   PlusCircle,
   Search,
+  Shield,
   ShieldCheck,
   User as UserIcon,
+  UserPlus,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Campus Portal',
+  '/found': 'Found Items Directory',
+  '/lost': 'Lost-Item Reports',
+  '/report-lost': 'Report Lost Item',
+  '/report-found': 'Report Found Item',
+  '/my-submissions': 'My Submissions & Claims',
+  '/dashboard': 'Dashboard',
+  '/admin': 'Admin Dashboard',
+  '/privacy': 'Privacy Notice'
+};
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [quickQuery, setQuickQuery] = useState('');
+
+  // Render full-screen wave glass layout without sidebar on Sign In / Register routes
+  const isAuthScreen = location.pathname === '/login' || location.pathname === '/register';
 
   useEffect(() => {
-    if (!menuOpen) return;
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') setDrawerOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [menuOpen]);
+  }, [drawerOpen]);
+
+  if (isAuthScreen) {
+    return (
+      <>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+        <main id="main-content">{children}</main>
+      </>
+    );
+  }
 
   const handleLogout = async () => {
     await logout();
-    setMenuOpen(false);
+    setDrawerOpen(false);
     navigate('/');
   };
 
-  const closeMenu = () => setMenuOpen(false);
+  const handleQuickSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const qs = quickQuery.trim() ? `?q=${encodeURIComponent(quickQuery.trim())}` : '';
+    navigate(`/found${qs}`);
+  };
+
+  const pageTitle =
+    PAGE_TITLES[location.pathname] ||
+    (location.pathname.startsWith('/found/')
+      ? 'Found Item Details'
+      : location.pathname.startsWith('/lost/')
+      ? 'Lost Report Details'
+      : location.pathname.startsWith('/claims/new/')
+      ? 'Submit Ownership Claim'
+      : 'Bugema Lost & Found');
+
+  const initials = user
+    ? user.fullName
+        .split(' ')
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'BU';
 
   return (
-    <div className="app-shell">
+    <div className="workspace-shell">
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
 
-      <header className="site-header">
-        <div className="container header-inner">
-          <Link to="/" className="brand" onClick={closeMenu}>
-            <img src="/bugema-logo.jpg" alt="Bugema University crest" className="brand-logo" />
-            <span>
-              Bugema Lost &amp; Found
-              <span className="brand-subtitle">Campus Property Recovery Portal</span>
-            </span>
-          </Link>
+      {drawerOpen && (
+        <div
+          className="mobile-drawer-backdrop"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-          <nav className="nav-desktop" aria-label="Primary navigation">
-            <NavLink to="/found" className="nav-link">
-              Found Items
-            </NavLink>
-            <NavLink to="/lost" className="nav-link">
-              Lost Reports
-            </NavLink>
-            {user && (
-              <>
-                <NavLink to="/report-lost" className="nav-link">
-                  Report Lost
-                </NavLink>
-                <NavLink to="/report-found" className="nav-link">
-                  Report Found
-                </NavLink>
-                <NavLink to="/my-submissions" className="nav-link">
-                  My Submissions
-                </NavLink>
-                <NavLink to="/dashboard" className="nav-link">
-                  Dashboard
-                </NavLink>
-              </>
-            )}
-            {user?.role === 'admin' && (
-              <NavLink to="/admin" className="nav-link nav-link-admin">
-                Admin Panel
-              </NavLink>
-            )}
-          </nav>
-
-          <div className="nav-actions">
-            {user ? (
-              <>
-                <span className="user-chip" title={`${user.fullName} (${user.email})`}>
-                  {user.role === 'admin' ? <ShieldCheck size={15} /> : <UserIcon size={15} />}
-                  {user.fullName.split(' ')[0]} · {user.role === 'admin' ? 'Admin' : 'Student'}
-                </span>
-                <button type="button" className="btn btn-ghost-light btn-sm" onClick={handleLogout}>
-                  <LogOut size={15} /> Sign out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-ghost-light btn-sm">
-                  Sign in
-                </Link>
-                <Link to="/register" className="btn btn-primary btn-sm">
-                  Register
-                </Link>
-              </>
-            )}
+      <aside className={`sidebar ${drawerOpen ? 'mobile-open' : ''}`} aria-label="Primary sidebar">
+        <div className="sidebar-brand">
+          <img src="/bugema-logo.jpg" alt="Bugema University crest" className="brand-logo" />
+          <div style={{ minWidth: 0 }}>
+            <div className="brand-title">Bugema L&amp;F</div>
+            <span className="brand-subtitle">Excellence in Services</span>
           </div>
-
-          <button
-            type="button"
-            className="mobile-menu-btn"
-            aria-expanded={menuOpen}
-            aria-controls="mobile-navigation"
-            aria-label="Toggle navigation menu"
-            onClick={() => setMenuOpen((prev) => !prev)}
-          >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
-            {menuOpen ? 'Close' : 'Menu'}
-          </button>
+          {drawerOpen && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ marginLeft: 'auto', padding: '6px 8px', minHeight: 32 }}
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Close navigation menu"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
-        {menuOpen && <div className="mobile-drawer-backdrop" onClick={closeMenu} aria-hidden="true" />}
+        <div className="sidebar-section-label">Explore</div>
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          <NavLink to="/" end className="sidebar-link">
+            <Home size={18} /> Home Overview
+          </NavLink>
+          <NavLink to="/found" className="sidebar-link">
+            <PackageCheck size={18} /> Found Items
+          </NavLink>
+          <NavLink to="/lost" className="sidebar-link">
+            <Search size={18} /> Lost Reports
+          </NavLink>
+        </nav>
 
-        <nav
-          id="mobile-navigation"
-          className={`mobile-nav ${menuOpen ? 'open' : ''}`}
-          aria-label="Mobile navigation"
-        >
-          <NavLink to="/" end className="nav-link" onClick={closeMenu}>
-            <Home size={17} /> Home
+        {user && (
+          <>
+            <div className="sidebar-divider" />
+            <div className="sidebar-section-label">My Workspace</div>
+            <nav className="sidebar-nav" aria-label="User navigation">
+              <NavLink to="/dashboard" className="sidebar-link">
+                <LayoutDashboard size={18} /> Dashboard
+              </NavLink>
+              <NavLink to="/report-lost" className="sidebar-link">
+                <PlusCircle size={18} /> Report Lost
+              </NavLink>
+              <NavLink to="/report-found" className="sidebar-link">
+                <PlusCircle size={18} /> Report Found
+              </NavLink>
+              <NavLink to="/my-submissions" className="sidebar-link">
+                <ClipboardList size={18} /> My Submissions
+              </NavLink>
+            </nav>
+          </>
+        )}
+
+        {user?.role === 'admin' && (
+          <>
+            <div className="sidebar-divider" />
+            <div className="sidebar-section-label">Administration</div>
+            <nav className="sidebar-nav" aria-label="Admin navigation">
+              <NavLink to="/admin" className="sidebar-link sidebar-link-admin">
+                <ShieldCheck size={18} /> Admin Panel
+              </NavLink>
+            </nav>
+          </>
+        )}
+
+        <div className="sidebar-footer">
+          <NavLink to="/privacy" className="sidebar-link">
+            <Shield size={18} /> Privacy Notice
           </NavLink>
-          <NavLink to="/found" className="nav-link" onClick={closeMenu}>
-            <PackageCheck size={17} /> Found Items
-          </NavLink>
-          <NavLink to="/lost" className="nav-link" onClick={closeMenu}>
-            <Search size={17} /> Lost Reports
-          </NavLink>
-          {user && (
-            <>
-              <NavLink to="/report-lost" className="nav-link" onClick={closeMenu}>
-                <PlusCircle size={17} /> Report Lost Item
-              </NavLink>
-              <NavLink to="/report-found" className="nav-link" onClick={closeMenu}>
-                <PlusCircle size={17} /> Report Found Item
-              </NavLink>
-              <NavLink to="/my-submissions" className="nav-link" onClick={closeMenu}>
-                <ClipboardList size={17} /> My Submissions &amp; Claims
-              </NavLink>
-              <NavLink to="/dashboard" className="nav-link" onClick={closeMenu}>
-                <LayoutDashboard size={17} /> My Dashboard
-              </NavLink>
-            </>
+          {user ? (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleLogout}>
+              <LogOut size={15} /> Sign Out
+            </button>
+          ) : (
+            <div className="row-gap">
+              <Link to="/login" className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                <LogIn size={15} /> Sign In
+              </Link>
+              <Link to="/register" className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                <UserPlus size={15} /> Register
+              </Link>
+            </div>
           )}
-          {user?.role === 'admin' && (
-            <NavLink to="/admin" className="nav-link nav-link-admin" onClick={closeMenu}>
-              <ShieldCheck size={17} /> Admin Dashboard
-            </NavLink>
-          )}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', marginTop: 8, paddingTop: 12 }}>
+        </div>
+      </aside>
+
+      <div className="workspace-main">
+        <header className="workspace-topbar">
+          <div className="topbar-left">
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              aria-expanded={drawerOpen}
+              aria-label="Open navigation menu"
+              onClick={() => setDrawerOpen((prev) => !prev)}
+            >
+              <Menu size={18} /> Menu
+            </button>
+            <div>
+              <div className="topbar-greeting">
+                {user ? `Welcome back, ${user.fullName.split(' ')[0]}` : 'Bugema University Campus'}
+              </div>
+              <div className="topbar-title">{pageTitle}</div>
+            </div>
+          </div>
+
+          <div className="topbar-right">
+            <form onSubmit={handleQuickSearch} className="topbar-search-form" role="search">
+              <Search size={16} aria-hidden="true" />
+              <label htmlFor="topbar-search" className="sr-only">
+                Search found property
+              </label>
+              <input
+                id="topbar-search"
+                type="search"
+                placeholder="Search found items…"
+                value={quickQuery}
+                onChange={(e) => setQuickQuery(e.target.value)}
+              />
+            </form>
+
             {user ? (
-              <button
-                type="button"
-                className="btn btn-ghost-light"
-                style={{ width: '100%' }}
-                onClick={handleLogout}
+              <Link
+                to={user.role === 'admin' ? '/admin' : '/dashboard'}
+                className="topbar-profile-pill"
+                title={user.email}
               >
-                <LogOut size={16} /> Sign out ({user.fullName})
-              </button>
+                <span className={`avatar-circle ${user.role === 'admin' ? 'admin' : ''}`}>
+                  {initials}
+                </span>
+                <span className="profile-text">
+                  <span className="profile-name">{user.fullName.split(' ').slice(0, 2).join(' ')}</span>
+                  <span className="profile-role">{user.role === 'admin' ? 'Administrator' : 'Student'}</span>
+                </span>
+              </Link>
             ) : (
               <div className="row-gap">
-                <Link to="/login" className="btn btn-ghost-light" style={{ flex: 1 }} onClick={closeMenu}>
-                  Sign in
+                <Link to="/login" className="btn btn-secondary btn-sm">
+                  Sign In
                 </Link>
-                <Link to="/register" className="btn btn-primary" style={{ flex: 1 }} onClick={closeMenu}>
+                <Link to="/register" className="btn btn-primary btn-sm">
                   Register
                 </Link>
               </div>
             )}
           </div>
-        </nav>
-      </header>
+        </header>
 
-      <main id="main-content" className="main-content">
-        {children}
-      </main>
+        <main id="main-content" className="main-content">
+          {children}
+        </main>
 
-      <footer className="site-footer">
-        <div className="container footer-grid">
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-            <img src="/bugema-logo.jpg" alt="Bugema University crest" className="brand-logo" />
-            <div>
-              <strong style={{ color: '#fff' }}>Bugema University Campus Lost &amp; Found Management System</strong>
-              <p style={{ margin: '6px 0 0', maxWidth: '58ch' }}>
-                Student project portal for reporting lost property, logging found belongings, and managing
-                staff-verified ownership claims. Uses fictional demonstration data only.
-              </p>
+        <footer className="site-footer">
+          <div className="footer-grid">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img
+                src="/bugema-logo.jpg"
+                alt="Bugema University crest"
+                className="brand-logo"
+                style={{ width: 34, height: 34 }}
+              />
+              <span>
+                <strong>Bugema University Campus Lost &amp; Found</strong> · Proposed student project
+                using fictional demo data.
+              </span>
+            </div>
+            <div className="footer-links">
+              <Link to="/found">Found Items</Link>
+              <Link to="/lost">Lost Reports</Link>
+              <Link to="/privacy">Privacy Notice</Link>
             </div>
           </div>
-          <div className="footer-links">
-            <Link to="/found">Browse Found</Link>
-            <Link to="/lost">Browse Lost</Link>
-            <Link to="/privacy">Privacy Notice</Link>
-            {user ? <Link to="/dashboard">Dashboard</Link> : <Link to="/login">Sign in</Link>}
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       <nav className="mobile-bottom-nav" aria-label="Quick mobile navigation">
         <NavLink to="/" end className="mobile-bottom-link">

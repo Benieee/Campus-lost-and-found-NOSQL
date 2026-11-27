@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  BookOpen,
+  Eye,
+  EyeOff,
+  IdCard,
+  Lock,
+  Mail,
+  Phone,
+  User as UserIcon
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function RegisterPage() {
@@ -15,6 +26,7 @@ export function RegisterPage() {
     password: '',
     confirmPassword: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptedNotice, setAcceptedNotice] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -55,137 +67,198 @@ export function RegisterPage() {
   };
 
   return (
-    <section className="page-section">
-      <div className="container" style={{ maxWidth: 640 }}>
-        <div className="card">
-          <img src="/bugema-logo.jpg" alt="Bugema University logo" className="auth-logo" />
-          <h1 style={{ marginTop: 0, marginBottom: 6, textAlign: 'center' }}>Student Registration</h1>
-          <p className="muted" style={{ marginTop: 0, marginBottom: 20, textAlign: 'center' }}>
-            Only the details required to identify your reports and contact you for verified property
-            returns are collected.
-          </p>
+    <div className="auth-scene">
+      <Link to="/" className="auth-back-link">
+        <ArrowLeft size={16} /> Back to Portal
+      </Link>
 
-          {error && (
-            <div className="alert alert-error" role="alert">
-              {error}
-            </div>
-          )}
+      <div className="auth-glass-card wide">
+        <div className="auth-crest-badge">
+          <img src="/bugema-logo.jpg" alt="Bugema University crest" />
+        </div>
 
-          <form onSubmit={handleSubmit} className="form-grid">
-            <div className="field">
-              <label htmlFor="reg-name">Full name</label>
+        <h1 className="auth-glass-title">Create Account</h1>
+        <p className="auth-glass-sub">
+          Register with your student details to report items and track ownership claims.
+        </p>
+
+        {error && (
+          <div className="alert alert-error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="form-grid">
+          <div>
+            <label htmlFor="reg-name" className="sr-only">
+              Full name
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <UserIcon size={17} />
+              </span>
               <input
                 id="reg-name"
                 required
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                placeholder="e.g. Amina Nakato"
+                placeholder="Full name"
               />
             </div>
+          </div>
 
-            <div className="field">
-              <label htmlFor="reg-student-id">Student ID</label>
+          <div>
+            <label htmlFor="reg-student-id" className="sr-only">
+              Student ID
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <IdCard size={17} />
+              </span>
               <input
                 id="reg-student-id"
                 required
                 value={form.studentId}
                 onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-                placeholder="e.g. 24/BIT/BU/R/0101"
+                placeholder="Student ID (e.g. 24/BIT/BU/R/0101)"
               />
             </div>
+          </div>
 
-            <div className="field">
-              <label htmlFor="reg-email">Email address</label>
+          <div>
+            <label htmlFor="reg-email" className="sr-only">
+              Email address
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <Mail size={17} />
+              </span>
               <input
                 id="reg-email"
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="name@example.edu"
+                placeholder="Email address"
               />
             </div>
+          </div>
 
-            <div className="field">
-              <label htmlFor="reg-phone">Phone number</label>
+          <div>
+            <label htmlFor="reg-phone" className="sr-only">
+              Phone number
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <Phone size={17} />
+              </span>
               <input
                 id="reg-phone"
                 required
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+256-700-000000"
+                placeholder="Phone (+256-700-000000)"
               />
             </div>
+          </div>
 
-            <div className="field form-full">
-              <label htmlFor="reg-course">Course / Academic Program</label>
+          <div className="form-full">
+            <label htmlFor="reg-course" className="sr-only">
+              Course or Academic Program
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <BookOpen size={17} />
+              </span>
               <input
                 id="reg-course"
                 required
                 value={form.course}
                 onChange={(e) => setForm({ ...form, course: e.target.value })}
-                placeholder="e.g. BSc Information Technology"
+                placeholder="Course / Program (e.g. BSc Information Technology)"
               />
             </div>
+          </div>
 
-            <div className="field">
-              <label htmlFor="reg-password">Password</label>
+          <div>
+            <label htmlFor="reg-password" className="sr-only">
+              Password
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <Lock size={17} />
+              </span>
               <input
                 id="reg-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={8}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="Minimum 8 characters"
+                placeholder="Password (min 8 chars)"
               />
+              <button
+                type="button"
+                className="auth-eye-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
             </div>
+          </div>
 
-            <div className="field">
-              <label htmlFor="reg-confirm">Confirm password</label>
+          <div>
+            <label htmlFor="reg-confirm" className="sr-only">
+              Confirm password
+            </label>
+            <div className="auth-input-pill">
+              <span className="auth-input-icon" aria-hidden="true">
+                <Lock size={17} />
+              </span>
               <input
                 id="reg-confirm"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                placeholder="Re-enter password"
+                placeholder="Confirm password"
               />
             </div>
+          </div>
 
-            <div className="form-full">
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.88rem' }}>
-                <input
-                  type="checkbox"
-                  checked={acceptedNotice}
-                  onChange={(e) => setAcceptedNotice(e.target.checked)}
-                  style={{ marginTop: 3 }}
-                />
-                <span>
-                  I have read the{' '}
-                  <Link to="/privacy" style={{ color: '#1d63dc', textDecoration: 'underline' }}>
-                    Privacy Notice
-                  </Link>{' '}
-                  and understand this is a proposed university project system.
-                </span>
-              </label>
-            </div>
+          <div className="form-full" style={{ padding: '2px 4px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.85rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={acceptedNotice}
+                onChange={(e) => setAcceptedNotice(e.target.checked)}
+                style={{ marginTop: 3 }}
+              />
+              <span>
+                I have read the{' '}
+                <Link to="/privacy" style={{ color: '#fff6d6', textDecoration: 'underline', fontWeight: 600 }}>
+                  Privacy Notice
+                </Link>{' '}
+                and consent to storing these details for property matching and verification.
+              </span>
+            </label>
+          </div>
 
-            <div className="form-full">
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
-                {submitting ? 'Creating account…' : 'Create Student Account'}
-              </button>
-            </div>
-          </form>
+          <div className="form-full">
+            <button type="submit" className="auth-submit-btn" disabled={submitting}>
+              {submitting ? 'Creating Account…' : 'Create Student Account'}
+            </button>
+          </div>
+        </form>
 
-          <p className="muted small" style={{ marginTop: 18, textAlign: 'center' }}>
-            Already registered?{' '}
-            <Link to="/login" style={{ color: '#1d63dc', fontWeight: 600 }}>
-              Sign in
-            </Link>
-          </p>
-        </div>
+        <p style={{ marginTop: 18, marginBottom: 0, textAlign: 'center', fontSize: '0.88rem' }}>
+          Already registered?{' '}
+          <Link to="/login" style={{ color: '#fff6d6', fontWeight: 700, textDecoration: 'underline' }}>
+            Sign in
+          </Link>
+        </p>
       </div>
-    </section>
+    </div>
   );
 }

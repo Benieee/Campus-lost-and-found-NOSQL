@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   CheckCircle2,
+  ClipboardList,
+  Clock,
+  Package,
   Pencil,
   RefreshCw,
   ShieldCheck,
@@ -369,24 +372,44 @@ export function AdminDashboardPage() {
 
         <div className="kpi-grid">
           <div className="kpi-card">
-            <div className="kpi-label">Open Lost Reports</div>
-            <div className="kpi-value">{counts.openLostReports}</div>
-            <div className="kpi-sub">Missing or Matched</div>
+            <div className="kpi-icon-circle red">
+              <ClipboardList size={22} />
+            </div>
+            <div>
+              <div className="kpi-label">Open Lost Reports</div>
+              <div className="kpi-value">{counts.openLostReports}</div>
+              <div className="kpi-sub">Missing or Matched</div>
+            </div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Found Items in Storage</div>
-            <div className="kpi-value">{counts.foundItemsInStorage}</div>
-            <div className="kpi-sub">{counts.foundClaimPending} claim pending</div>
+            <div className="kpi-icon-circle">
+              <Package size={22} />
+            </div>
+            <div>
+              <div className="kpi-label">Found in Storage</div>
+              <div className="kpi-value">{counts.foundItemsInStorage}</div>
+              <div className="kpi-sub">{counts.foundClaimPending} claim pending</div>
+            </div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Claims Awaiting Review</div>
-            <div className="kpi-value">{counts.claimsAwaitingReview}</div>
-            <div className="kpi-sub">Pending or Under Review</div>
+            <div className="kpi-icon-circle gold">
+              <Clock size={22} />
+            </div>
+            <div>
+              <div className="kpi-label">Claims Awaiting</div>
+              <div className="kpi-value">{counts.claimsAwaitingReview}</div>
+              <div className="kpi-sub">Pending or Under Review</div>
+            </div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Recently Returned Items</div>
-            <div className="kpi-value">{counts.recentlyReturnedItems}</div>
-            <div className="kpi-sub">{counts.totalReturnedItems} returned overall</div>
+            <div className="kpi-icon-circle emerald">
+              <CheckCircle2 size={22} />
+            </div>
+            <div>
+              <div className="kpi-label">Returned Items</div>
+              <div className="kpi-value">{counts.recentlyReturnedItems}</div>
+              <div className="kpi-sub">{counts.totalReturnedItems} returned overall</div>
+            </div>
           </div>
         </div>
 
@@ -432,6 +455,105 @@ export function AdminDashboardPage() {
           </div>
         ) : tab === 'overview' ? (
           <div style={{ display: 'grid', gap: 20 }}>
+            <div className="dashboard-split">
+              <div className="card">
+                <div className="row-between">
+                  <h2 style={{ margin: 0, fontSize: '1.08rem' }}>Campus Recovery Statistics</h2>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTab('found')}>
+                    View Inventory
+                  </button>
+                </div>
+                {(() => {
+                  const total = Math.max(
+                    1,
+                    counts.openLostReports +
+                      counts.foundItemsInStorage +
+                      counts.foundClaimPending +
+                      counts.totalReturnedItems
+                  );
+                  return (
+                    <>
+                      <div className="stat-progress-track" aria-label="Campus recovery distribution">
+                        <div
+                          className="stat-seg-blue"
+                          style={{ width: `${(counts.foundItemsInStorage / total) * 100}%` }}
+                          title="Found in Storage"
+                        />
+                        <div
+                          className="stat-seg-gold"
+                          style={{ width: `${(counts.foundClaimPending / total) * 100}%` }}
+                          title="Claim Pending"
+                        />
+                        <div
+                          className="stat-seg-emerald"
+                          style={{ width: `${(counts.totalReturnedItems / total) * 100}%` }}
+                          title="Returned"
+                        />
+                        <div
+                          className="stat-seg-red"
+                          style={{ width: `${(counts.openLostReports / total) * 100}%` }}
+                          title="Open Lost"
+                        />
+                      </div>
+                      <div className="stat-breakdown-row">
+                        <div>
+                          <div className="kpi-label">Stored</div>
+                          <div className="kpi-value" style={{ fontSize: '1.35rem' }}>
+                            {counts.foundItemsInStorage}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="kpi-label">Claim Pending</div>
+                          <div className="kpi-value" style={{ fontSize: '1.35rem' }}>
+                            {counts.foundClaimPending}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="kpi-label">Returned</div>
+                          <div className="kpi-value" style={{ fontSize: '1.35rem' }}>
+                            {counts.totalReturnedItems}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="kpi-label">Open Lost</div>
+                          <div className="kpi-value" style={{ fontSize: '1.35rem' }}>
+                            {counts.openLostReports}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="action-banner-card">
+                <span className="badge" style={{ background: 'rgba(245,183,0,0.22)', color: '#fff6d6' }}>
+                  ADMIN ACTIONS
+                </span>
+                <h3>Log or update campus property</h3>
+                <p>
+                  Upload newly turned-in items, update photos, or mark items recovered directly by
+                  their owners.
+                </p>
+                <div className="row-gap">
+                  <button
+                    type="button"
+                    className="btn btn-white btn-sm"
+                    onClick={() => setItemModal({ open: true, kind: 'found', mode: 'create' })}
+                  >
+                    <Upload size={15} /> Upload Found
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost-light btn-sm"
+                    onClick={() => setTab('claims')}
+                  >
+                    Review Claims ({counts.claimsAwaitingReview})
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="two-col">
               <div className="card">
                 <div className="row-between" style={{ marginBottom: 12 }}>
