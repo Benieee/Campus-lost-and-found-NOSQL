@@ -46,9 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="site-header">
         <div className="container header-inner">
           <Link to="/" className="brand" onClick={closeMenu}>
-            <span className="brand-mark" aria-hidden="true">
-              BU
-            </span>
+            <img src="/bugema-logo.jpg" alt="Bugema University crest" className="brand-logo" />
             <span>
               Bugema Lost &amp; Found
               <span className="brand-subtitle">Campus Property Recovery Portal</span>
@@ -188,12 +186,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="site-footer">
         <div className="container footer-grid">
-          <div>
-            <strong style={{ color: '#fff' }}>Bugema University Campus Lost &amp; Found Management System</strong>
-            <p style={{ margin: '6px 0 0', maxWidth: '58ch' }}>
-              Student project portal for reporting lost property, logging found belongings, and managing
-              staff-verified ownership claims. Uses fictional demonstration data only.
-            </p>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <img src="/bugema-logo.jpg" alt="Bugema University crest" className="brand-logo" />
+            <div>
+              <strong style={{ color: '#fff' }}>Bugema University Campus Lost &amp; Found Management System</strong>
+              <p style={{ margin: '6px 0 0', maxWidth: '58ch' }}>
+                Student project portal for reporting lost property, logging found belongings, and managing
+                staff-verified ownership claims. Uses fictional demonstration data only.
+              </p>
+            </div>
           </div>
           <div className="footer-links">
             <Link to="/found">Browse Found</Link>

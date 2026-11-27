@@ -58,8 +58,9 @@ export function RegisterPage() {
     <section className="page-section">
       <div className="container" style={{ maxWidth: 640 }}>
         <div className="card">
-          <h1 style={{ marginTop: 0, marginBottom: 6 }}>Student Registration</h1>
-          <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
+          <img src="/bugema-logo.jpg" alt="Bugema University logo" className="auth-logo" />
+          <h1 style={{ marginTop: 0, marginBottom: 6, textAlign: 'center' }}>Student Registration</h1>
+          <p className="muted" style={{ marginTop: 0, marginBottom: 20, textAlign: 'center' }}>
             Only the details required to identify your reports and contact you for verified property
             returns are collected.
           </p>

@@ -37,8 +37,9 @@ export function LoginPage() {
     <section className="page-section">
       <div className="container" style={{ maxWidth: 480 }}>
         <div className="card">
-          <h1 style={{ marginTop: 0, marginBottom: 6 }}>Sign In</h1>
-          <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
+          <img src="/bugema-logo.jpg" alt="Bugema University logo" className="auth-logo" />
+          <h1 style={{ marginTop: 0, marginBottom: 6, textAlign: 'center' }}>Sign In</h1>
+          <p className="muted" style={{ marginTop: 0, marginBottom: 20, textAlign: 'center' }}>
             Access your student reports, ownership claims, or the Admin Control Center.
           </p>
 
