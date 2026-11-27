@@ -11,6 +11,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { foundItemsApi, publicApi } from '../api/client';
+import { CampusClock } from '../components/CampusClock';
 import { ItemThumbnail, SkeletonCards } from '../components/ItemThumbnail';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -95,45 +96,48 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="hero-panel">
-            <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: '1.15rem' }}>
-              Quick search found items
-            </h2>
-            <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.85 }}>
-              Search by item name, category, or campus building.
-            </p>
-            <form onSubmit={handleSearch} className="search-inline" role="search">
-              <label htmlFor="hero-search" className="sr-only">
-                Search found items
-              </label>
-              <input
-                id="hero-search"
-                type="search"
-                placeholder="e.g. calculator, charger, keys, library…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button type="submit" className="btn btn-primary btn-sm">
-                <Search size={16} /> Search
-              </button>
-            </form>
+          <div style={{ display: 'grid', gap: 14 }}>
+            <CampusClock />
+            <div className="hero-panel">
+              <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: '1.15rem' }}>
+                Quick search found items
+              </h2>
+              <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.85 }}>
+                Search by item name, category, or campus building.
+              </p>
+              <form onSubmit={handleSearch} className="search-inline" role="search">
+                <label htmlFor="hero-search" className="sr-only">
+                  Search found items
+                </label>
+                <input
+                  id="hero-search"
+                  type="search"
+                  placeholder="e.g. calculator, charger, keys, library…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <button type="submit" className="btn btn-primary btn-sm">
+                  <Search size={16} /> Search
+                </button>
+              </form>
 
-            {summary && (
-              <div className="hero-stats">
-                <div className="hero-stat-box">
-                  <div className="hero-stat-value">{summary.openLostReports}</div>
-                  <div className="hero-stat-label">Open Lost</div>
+              {summary && (
+                <div className="hero-stats">
+                  <div className="hero-stat-box">
+                    <div className="hero-stat-value">{summary.openLostReports}</div>
+                    <div className="hero-stat-label">Open Lost</div>
+                  </div>
+                  <div className="hero-stat-box">
+                    <div className="hero-stat-value">{summary.foundInStorage}</div>
+                    <div className="hero-stat-label">Found Held</div>
+                  </div>
+                  <div className="hero-stat-box">
+                    <div className="hero-stat-value">{summary.returnedItems}</div>
+                    <div className="hero-stat-label">Returned</div>
+                  </div>
                 </div>
-                <div className="hero-stat-box">
-                  <div className="hero-stat-value">{summary.foundInStorage}</div>
-                  <div className="hero-stat-label">Found Held</div>
-                </div>
-                <div className="hero-stat-box">
-                  <div className="hero-stat-value">{summary.returnedItems}</div>
-                  <div className="hero-stat-label">Returned</div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>
