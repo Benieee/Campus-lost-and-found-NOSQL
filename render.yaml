@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: bugema-campus-lost-found
+    name: campus-lost-found
     runtime: node
     plan: free
-    buildCommand: npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci && npm --prefix backend run build
+    buildCommand: npm --prefix frontend ci --include=dev && npm --prefix frontend run build && MONGOMS_DISABLE_POSTINSTALL=1 npm --prefix backend ci --include=dev && npm --prefix backend run build
     startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:
@@ -19,3 +19,7 @@ services:
         sync: false
       - key: BCRYPT_ROUNDS
         value: "12"
+      - key: AI_ASSISTANT_ENABLED
+        value: "true"
+      - key: AI_PROVIDER_API_KEY
+        sync: false
