@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
@@ -10,6 +11,7 @@ export function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,11 +35,11 @@ export function LoginPage() {
 
   return (
     <section className="page-section">
-      <div className="container" style={{ maxWidth: 520 }}>
+      <div className="container" style={{ maxWidth: 480 }}>
         <div className="card">
           <h1 style={{ marginTop: 0, marginBottom: 6 }}>Sign In</h1>
           <p className="muted" style={{ marginTop: 0, marginBottom: 20 }}>
-            Access your student reports, ownership claims, or staff administration dashboard.
+            Access your student reports, ownership claims, or the Admin Control Center.
           </p>
 
           {error && (
@@ -56,21 +58,31 @@ export function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@example.edu"
+                placeholder="name@example.edu"
               />
             </div>
 
             <div className="field" style={{ marginBottom: 20 }}>
               <label htmlFor="login-password">Password</label>
-              <input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-              />
+              <div className="password-wrap">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
@@ -85,13 +97,33 @@ export function LoginPage() {
             </Link>
           </p>
 
-          <div className="alert alert-info" style={{ marginTop: 18, marginBottom: 0 }}>
-            <div className="small">
-              <strong>Local Demo Accounts (Fictional Seed Data):</strong>
-              <br />
-              Student: <code>amina.nakato@example.edu</code> / <code>StudentDemo!2026</code>
-              <br />
-              Staff Admin: <code>staff.admin@example.edu</code> / <code>StaffDemo!2026</code>
+          <div className="card card-compact" style={{ marginTop: 18, background: '#f8fafc' }}>
+            <div className="small" style={{ fontWeight: 700, marginBottom: 8 }}>
+              Quick Demo Sign-In (Fictional Seed Data)
+            </div>
+            <div className="row-gap">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  setEmail('amina.nakato@example.edu');
+                  setPassword('StudentDemo!2026');
+                }}
+              >
+                <UserIcon size={14} /> Fill Student
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  setEmail('staff.admin@example.edu');
+                  setPassword('StaffDemo!2026');
+                }}
+              >
+                <ShieldCheck size={14} /> Fill Admin
+              </button>
             </div>
           </div>
         </div>

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Calendar, MapPin, Package, PlusCircle, Search } from 'lucide-react';
-import { foundItemsApi, locationsApi, resolveMediaUrl } from '../api/client';
+import { Calendar, MapPin, Package, PlusCircle, Search, SlidersHorizontal, X } from 'lucide-react';
+import { foundItemsApi, locationsApi } from '../api/client';
+import { ItemThumbnail, SkeletonCards } from '../components/ItemThumbnail';
 import { Pagination } from '../components/Pagination';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,7 @@ export function FoundItemsPage() {
   const [status, setStatus] = useState(searchParams.get('status') || '');
   const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') || '');
   const [page, setPage] = useState(Number(searchParams.get('page') || 1));
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [locations, setLocations] = useState<CampusLocation[]>([]);
   const [items, setItems] = useState<FoundItem[]>([]);
@@ -60,16 +62,27 @@ export function FoundItemsPage() {
     void fetchItems();
   }, [fetchItems]);
 
+  const activeFilterCount = [category, location, status, dateFrom].filter(Boolean).length;
+
+  const syncUrl = (overrides: Record<string, string> = {}) => {
+    const merged = { q: q.trim(), category, location, status, dateFrom, ...overrides };
+    const next = new URLSearchParams();
+    Object.entries(merged).forEach(([k, v]) => {
+      if (v) next.set(k, v);
+    });
+    setSearchParams(next);
+  };
+
   const applyFilters = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    const next = new URLSearchParams();
-    if (q.trim()) next.set('q', q.trim());
-    if (category) next.set('category', category);
-    if (location) next.set('location', location);
-    if (status) next.set('status', status);
-    if (dateFrom) next.set('dateFrom', dateFrom);
-    setSearchParams(next);
+    syncUrl();
+  };
+
+  const selectCategoryChip = (cat: string) => {
+    setCategory(cat);
+    setPage(1);
+    syncUrl({ category: cat });
   };
 
   const resetFilters = () => {
@@ -89,109 +102,130 @@ export function FoundItemsPage() {
           <div>
             <h1>Found Items Directory</h1>
             <p>
-              Browse items turned in across campus. Private identifying marks are withheld until staff
-              verify your ownership claim.
+              Browse items turned in across campus. Private identifying marks remain hidden until staff
+              verify ownership.
             </p>
           </div>
           {user && (
-            <Link to="/report-found" className="btn btn-primary">
+            <Link to="/report-found" className="btn btn-primary btn-sm">
               <PlusCircle size={16} /> Report Found Item
             </Link>
           )}
         </div>
 
-        <form onSubmit={applyFilters} className="filter-bar" aria-label="Filter found items">
-          <div className="field">
-            <label htmlFor="found-q">Keyword</label>
-            <input
-              id="found-q"
-              type="search"
-              placeholder="Item name or description"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="found-category">Category</label>
-            <select
-              id="found-category"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                setPage(1);
-              }}
+        <div className="chip-strip" role="group" aria-label="Filter by category">
+          <button
+            type="button"
+            className={`chip ${category === '' ? 'active' : ''}`}
+            onClick={() => selectCategoryChip('')}
+          >
+            All Categories
+          </button>
+          {ITEM_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`chip ${category === cat ? 'active' : ''}`}
+              onClick={() => selectCategoryChip(cat)}
             >
-              <option value="">All categories</option>
-              {ITEM_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="found-location">Location</label>
-            <select
-              id="found-location"
-              value={location}
-              onChange={(e) => {
-                setLocation(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All locations</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.name}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="found-status">Status</label>
-            <select
-              id="found-status"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">Active statuses</option>
-              {FOUND_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="found-date">Found since</label>
-            <input
-              id="found-date"
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-
-          <div className="row-gap" style={{ gridColumn: '1 / -1' }}>
-            <button type="submit" className="btn btn-primary btn-sm">
-              <Search size={15} /> Apply filters
+              {cat}
             </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
-              Reset
+          ))}
+        </div>
+
+        <form onSubmit={applyFilters} className="filter-shell" aria-label="Filter found items">
+          <div className="filter-top-row">
+            <div className="filter-search-wrap">
+              <Search size={16} aria-hidden="true" />
+              <label htmlFor="found-q" className="sr-only">
+                Search found items
+              </label>
+              <input
+                id="found-q"
+                type="search"
+                placeholder="Search by item name, description, or location…"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm filter-toggle-mobile"
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              aria-expanded={filtersOpen}
+            >
+              <SlidersHorizontal size={15} />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </button>
+
+            {(q || activeFilterCount > 0) && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
+                <X size={15} /> Clear
+              </button>
+            )}
+          </div>
+
+          <div className={`filter-bar ${filtersOpen ? '' : 'collapsed-mobile'}`}>
+            <div className="field">
+              <label htmlFor="found-location">Campus location</label>
+              <select
+                id="found-location"
+                value={location}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All locations</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="found-status">Status</label>
+              <select
+                id="found-status"
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">Active statuses</option>
+                {FOUND_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="found-date">Found since</label>
+              <input
+                id="found-date"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            <div className="field">
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                <Search size={15} /> Apply Filters
+              </button>
+            </div>
           </div>
         </form>
 
@@ -202,14 +236,12 @@ export function FoundItemsPage() {
         )}
 
         {loading ? (
-          <div className="loading-state" role="status">
-            Loading found items…
-          </div>
+          <SkeletonCards count={6} />
         ) : items.length === 0 ? (
           <div className="empty-state">
             <p style={{ marginTop: 0 }}>No found items match your current filters.</p>
             <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
-              Clear filters
+              Reset all filters
             </button>
           </div>
         ) : (
@@ -217,13 +249,11 @@ export function FoundItemsPage() {
             <div className="items-grid">
               {items.map((item) => (
                 <article key={item.id} className="item-card">
-                  <div className="item-thumb">
-                    {item.imageUrl ? (
-                      <img src={resolveMediaUrl(item.imageUrl)} alt={item.itemName} />
-                    ) : (
-                      <Package size={40} aria-hidden="true" />
-                    )}
-                  </div>
+                  <ItemThumbnail
+                    imageUrl={item.imageUrl}
+                    itemName={item.itemName}
+                    category={item.category}
+                  />
                   <div className="item-card-body">
                     <div className="row-between">
                       <span className="badge badge-blue">{item.category}</span>
@@ -236,18 +266,18 @@ export function FoundItemsPage() {
                         <MapPin size={14} aria-hidden="true" /> Found: {item.locationFound}
                       </span>
                       <span className="item-meta-row">
-                        <Package size={14} aria-hidden="true" /> Held at: {item.holdingLocation}
+                        <Package size={14} aria-hidden="true" /> Held: {item.holdingLocation}
                       </span>
                       <span className="item-meta-row">
                         <Calendar size={14} aria-hidden="true" /> {formatDate(item.dateFound)}
                       </span>
                     </div>
                     <div className="row-gap" style={{ marginTop: 8 }}>
-                      <Link to={`/found/${item.id}`} className="btn btn-secondary btn-sm">
+                      <Link to={`/found/${item.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                         View Details
                       </Link>
                       {user && (item.status === 'Stored' || item.status === 'Claim Pending') && !item.isMine && (
-                        <Link to={`/claims/new/${item.id}`} className="btn btn-primary btn-sm">
+                        <Link to={`/claims/new/${item.id}`} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                           Claim Item
                         </Link>
                       )}

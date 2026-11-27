@@ -139,7 +139,7 @@ export function MySubmissionsPage() {
             </div>
           ) : (
             <div className="table-wrap">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Item</th>
@@ -153,18 +153,18 @@ export function MySubmissionsPage() {
                 <tbody>
                   {lostItems.map((item) => (
                     <tr key={item.id}>
-                      <td>
+                      <td data-label="Item">
                         <Link to={`/lost/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
                           {item.itemName}
                         </Link>
                       </td>
-                      <td>{item.category}</td>
-                      <td>{item.lastKnownLocation}</td>
-                      <td>{formatDate(item.dateLost)}</td>
-                      <td>
+                      <td data-label="Category">{item.category}</td>
+                      <td data-label="Last-Known Location">{item.lastKnownLocation}</td>
+                      <td data-label="Date Lost">{formatDate(item.dateLost)}</td>
+                      <td data-label="Status">
                         <StatusBadge status={item.status} />
                       </td>
-                      <td>
+                      <td data-label="Actions">
                         <div className="row-gap">
                           <Link to={`/lost/${item.id}`} className="btn btn-secondary btn-sm">
                             Matches
@@ -201,7 +201,7 @@ export function MySubmissionsPage() {
             </div>
           ) : (
             <div className="table-wrap">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Item</th>
@@ -215,16 +215,16 @@ export function MySubmissionsPage() {
                 <tbody>
                   {foundItems.map((item) => (
                     <tr key={item.id}>
-                      <td>
+                      <td data-label="Item">
                         <Link to={`/found/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
                           {item.itemName}
                         </Link>
                       </td>
-                      <td>{item.category}</td>
-                      <td>{item.locationFound}</td>
-                      <td>{item.holdingLocation}</td>
-                      <td>{formatDate(item.dateFound)}</td>
-                      <td>
+                      <td data-label="Category">{item.category}</td>
+                      <td data-label="Location Found">{item.locationFound}</td>
+                      <td data-label="Holding Desk">{item.holdingLocation}</td>
+                      <td data-label="Date Found">{formatDate(item.dateFound)}</td>
+                      <td data-label="Status">
                         <StatusBadge status={item.status} />
                       </td>
                     </tr>

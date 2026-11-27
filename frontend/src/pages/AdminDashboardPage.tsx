@@ -710,7 +710,7 @@ export function AdminDashboardPage() {
               <div className="empty-state">No lost-item reports match your filter.</div>
             ) : (
               <div className="table-wrap">
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>Item &amp; Private Notes</th>
@@ -723,7 +723,7 @@ export function AdminDashboardPage() {
                   <tbody>
                     {lostItems.map((item) => (
                       <tr key={item.id}>
-                        <td>
+                        <td data-label="Item & Private Notes">
                           <Link to={`/lost/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
                             {item.itemName}
                           </Link>
@@ -734,15 +734,15 @@ export function AdminDashboardPage() {
                             </div>
                           )}
                         </td>
-                        <td className="small">
+                        <td data-label="Owner" className="small">
                           {item.owner?.fullName}
                           <div className="muted">{item.owner?.studentId}</div>
                         </td>
-                        <td className="small">
+                        <td data-label="Location / Date" className="small">
                           {item.lastKnownLocation}
                           <div className="muted">{formatDate(item.dateLost)}</div>
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <StatusBadge status={item.status} />
                           <div style={{ marginTop: 6 }}>
                             <select
@@ -760,7 +760,7 @@ export function AdminDashboardPage() {
                             </select>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Admin Actions">
                           <div className="row-gap">
                             <button
                               type="button"
@@ -835,7 +835,7 @@ export function AdminDashboardPage() {
               <div className="empty-state">No found items match your filter.</div>
             ) : (
               <div className="table-wrap">
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>Item &amp; Private Verification Marks</th>
@@ -848,7 +848,7 @@ export function AdminDashboardPage() {
                   <tbody>
                     {foundItems.map((item) => (
                       <tr key={item.id}>
-                        <td>
+                        <td data-label="Item & Verification Marks">
                           <Link to={`/found/${item.id}`} style={{ fontWeight: 600, color: '#1d63dc' }}>
                             {item.itemName}
                           </Link>
@@ -859,12 +859,12 @@ export function AdminDashboardPage() {
                             </div>
                           )}
                         </td>
-                        <td className="small">
+                        <td data-label="Found At / Holding Desk" className="small">
                           {item.locationFound}
                           <div className="muted">Held: {item.holdingLocation}</div>
                         </td>
-                        <td className="small">{formatDate(item.dateFound)}</td>
-                        <td>
+                        <td data-label="Date Found" className="small">{formatDate(item.dateFound)}</td>
+                        <td data-label="Status">
                           <StatusBadge status={item.status} />
                           <div style={{ marginTop: 6 }}>
                             <select
@@ -882,7 +882,7 @@ export function AdminDashboardPage() {
                             </select>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Admin Actions">
                           <div className="row-gap">
                             <button
                               type="button"
@@ -920,7 +920,7 @@ export function AdminDashboardPage() {
           </div>
         ) : tab === 'users' ? (
           <div className="table-wrap">
-            <table>
+            <table className="responsive-table">
               <thead>
                 <tr>
                   <th>Name &amp; Email</th>
@@ -934,23 +934,23 @@ export function AdminDashboardPage() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td>
+                    <td data-label="Name & Email">
                       <strong>{u.fullName}</strong>
                       <div className="muted small">{u.email}</div>
                     </td>
-                    <td className="small">{u.studentId}</td>
-                    <td className="small">{u.course}</td>
-                    <td>
+                    <td data-label="Student / Staff ID" className="small">{u.studentId}</td>
+                    <td data-label="Course / Dept" className="small">{u.course}</td>
+                    <td data-label="Role">
                       <span className={`badge ${u.role === 'admin' ? 'badge-purple' : 'badge-blue'}`}>
                         {u.role}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={`badge ${u.isActive ? 'badge-green' : 'badge-red'}`}>
                         {u.isActive ? 'Active' : 'Disabled'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       <div className="row-gap">
                         <button
                           type="button"
@@ -1034,7 +1034,7 @@ export function AdminDashboardPage() {
             </div>
 
             <div className="table-wrap">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Location</th>
@@ -1046,21 +1046,21 @@ export function AdminDashboardPage() {
                 <tbody>
                   {locations.map((loc) => (
                     <tr key={loc.id}>
-                      <td>
+                      <td data-label="Location">
                         <strong>{loc.name}</strong> ({loc.code})
                         <div className="muted small">{loc.buildingArea}</div>
                       </td>
-                      <td>
+                      <td data-label="Holding Desk">
                         <span className={`badge ${loc.isHoldingDesk ? 'badge-blue' : 'badge-slate'}`}>
                           {loc.isHoldingDesk ? 'Holding Desk' : 'Area Only'}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`badge ${loc.isActive ? 'badge-green' : 'badge-red'}`}>
                           {loc.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Action">
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
@@ -1089,7 +1089,7 @@ export function AdminDashboardPage() {
         ) : (
           <div>
             <div className="table-wrap">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Timestamp</th>
@@ -1102,16 +1102,16 @@ export function AdminDashboardPage() {
                 <tbody>
                   {auditLogs.map((log) => (
                     <tr key={log.id}>
-                      <td className="small">{formatDateTime(log.createdAt)}</td>
-                      <td className="small">
+                      <td data-label="Timestamp" className="small">{formatDateTime(log.createdAt)}</td>
+                      <td data-label="Actor" className="small">
                         {log.actor?.fullName || 'System'}
                         <div className="muted">{log.actorRole}</div>
                       </td>
-                      <td>
+                      <td data-label="Action">
                         <span className="badge badge-slate">{log.action}</span>
                       </td>
-                      <td className="small">{log.entityType}</td>
-                      <td className="small">{log.summary}</td>
+                      <td data-label="Entity" className="small">{log.entityType}</td>
+                      <td data-label="Summary" className="small">{log.summary}</td>
                     </tr>
                   ))}
                 </tbody>

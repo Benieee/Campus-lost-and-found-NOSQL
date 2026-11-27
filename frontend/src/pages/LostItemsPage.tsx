@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Package, PlusCircle, Search } from 'lucide-react';
-import { locationsApi, lostItemsApi, resolveMediaUrl } from '../api/client';
+import { Calendar, MapPin, PlusCircle, Search, SlidersHorizontal, X } from 'lucide-react';
+import { locationsApi, lostItemsApi } from '../api/client';
+import { ItemThumbnail, SkeletonCards } from '../components/ItemThumbnail';
 import { Pagination } from '../components/Pagination';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,7 @@ export function LostItemsPage() {
   const [status, setStatus] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [locations, setLocations] = useState<CampusLocation[]>([]);
   const [items, setItems] = useState<LostItem[]>([]);
@@ -58,6 +60,8 @@ export function LostItemsPage() {
     void fetchItems();
   }, [fetchItems]);
 
+  const activeFilterCount = [category, location, status, dateFrom].filter(Boolean).length;
+
   const resetFilters = () => {
     setQ('');
     setCategory('');
@@ -74,15 +78,41 @@ export function LostItemsPage() {
           <div>
             <h1>Lost-Item Reports</h1>
             <p>
-              Public summaries of reported missing items. If you have found one of these items, turn it
-              in at a holding desk and log a found report.
+              Public summaries of reported missing items. Found something listed here? Turn it in at a
+              holding desk and log a found report.
             </p>
           </div>
           {user && (
-            <Link to="/report-lost" className="btn btn-primary">
+            <Link to="/report-lost" className="btn btn-primary btn-sm">
               <PlusCircle size={16} /> Report Lost Item
             </Link>
           )}
+        </div>
+
+        <div className="chip-strip" role="group" aria-label="Filter lost reports by category">
+          <button
+            type="button"
+            className={`chip ${category === '' ? 'active' : ''}`}
+            onClick={() => {
+              setCategory('');
+              setPage(1);
+            }}
+          >
+            All Categories
+          </button>
+          {ITEM_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={`chip ${category === cat ? 'active' : ''}`}
+              onClick={() => {
+                setCategory(cat);
+                setPage(1);
+              }}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
         <form
@@ -90,100 +120,101 @@ export function LostItemsPage() {
             e.preventDefault();
             setPage(1);
           }}
-          className="filter-bar"
+          className="filter-shell"
           aria-label="Filter lost items"
         >
-          <div className="field">
-            <label htmlFor="lost-q">Keyword</label>
-            <input
-              id="lost-q"
-              type="search"
-              placeholder="Item name or description"
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
+          <div className="filter-top-row">
+            <div className="filter-search-wrap">
+              <Search size={16} aria-hidden="true" />
+              <label htmlFor="lost-q" className="sr-only">
+                Search lost reports
+              </label>
+              <input
+                id="lost-q"
+                type="search"
+                placeholder="Search by item name, description, or campus building…"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
 
-          <div className="field">
-            <label htmlFor="lost-category">Category</label>
-            <select
-              id="lost-category"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                setPage(1);
-              }}
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm filter-toggle-mobile"
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              aria-expanded={filtersOpen}
             >
-              <option value="">All categories</option>
-              {ITEM_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="lost-location">Last-known location</label>
-            <select
-              id="lost-location"
-              value={location}
-              onChange={(e) => {
-                setLocation(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All locations</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.name}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="lost-status">Status</label>
-            <select
-              id="lost-status"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All statuses</option>
-              {LOST_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label htmlFor="lost-date">Lost since</label>
-            <input
-              id="lost-date"
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-
-          <div className="row-gap" style={{ gridColumn: '1 / -1' }}>
-            <button type="submit" className="btn btn-primary btn-sm">
-              <Search size={15} /> Apply filters
+              <SlidersHorizontal size={15} />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
-              Reset
-            </button>
+
+            {(q || activeFilterCount > 0) && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
+                <X size={15} /> Clear
+              </button>
+            )}
+          </div>
+
+          <div className={`filter-bar ${filtersOpen ? '' : 'collapsed-mobile'}`}>
+            <div className="field">
+              <label htmlFor="lost-location">Last-known location</label>
+              <select
+                id="lost-location"
+                value={location}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All locations</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="lost-status">Status</label>
+              <select
+                id="lost-status"
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All statuses</option>
+                {LOST_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="lost-date">Lost since</label>
+              <input
+                id="lost-date"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            <div className="field">
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                <Search size={15} /> Apply Filters
+              </button>
+            </div>
           </div>
         </form>
 
@@ -194,14 +225,12 @@ export function LostItemsPage() {
         )}
 
         {loading ? (
-          <div className="loading-state" role="status">
-            Loading lost-item reports…
-          </div>
+          <SkeletonCards count={6} />
         ) : items.length === 0 ? (
           <div className="empty-state">
             <p style={{ marginTop: 0 }}>No lost-item reports match your filters.</p>
             <button type="button" className="btn btn-secondary btn-sm" onClick={resetFilters}>
-              Clear filters
+              Reset all filters
             </button>
           </div>
         ) : (
@@ -209,13 +238,11 @@ export function LostItemsPage() {
             <div className="items-grid">
               {items.map((item) => (
                 <article key={item.id} className="item-card">
-                  <div className="item-thumb">
-                    {item.imageUrl ? (
-                      <img src={resolveMediaUrl(item.imageUrl)} alt={item.itemName} />
-                    ) : (
-                      <Package size={40} aria-hidden="true" />
-                    )}
-                  </div>
+                  <ItemThumbnail
+                    imageUrl={item.imageUrl}
+                    itemName={item.itemName}
+                    category={item.category}
+                  />
                   <div className="item-card-body">
                     <div className="row-between">
                       <span className="badge badge-blue">{item.category}</span>
@@ -232,7 +259,7 @@ export function LostItemsPage() {
                       </span>
                     </div>
                     <div className="row-gap" style={{ marginTop: 8 }}>
-                      <Link to={`/lost/${item.id}`} className="btn btn-secondary btn-sm">
+                      <Link to={`/lost/${item.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
                         View Details &amp; Matches
                       </Link>
                     </div>
