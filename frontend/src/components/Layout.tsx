@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeftRight,
   Bot,
+  ChevronDown,
   ClipboardList,
   Home,
   LayoutDashboard,
@@ -38,23 +40,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Render full-screen wave glass layout without sidebar on Sign In / Register routes
   const isAuthScreen = location.pathname === '/login' || location.pathname === '/register';
 
   useEffect(() => {
     setDrawerOpen(false);
+    setAccountMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen && !accountMenuOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setDrawerOpen(false);
+      if (e.key === 'Escape') {
+        setDrawerOpen(false);
+        setAccountMenuOpen(false);
+      }
+    };
+    const onClickOutside = (e: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [drawerOpen]);
+    window.addEventListener('mousedown', onClickOutside);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onClickOutside);
+    };
+  }, [drawerOpen, accountMenuOpen]);
 
   if (isAuthScreen) {
     return (
@@ -67,10 +84,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const handleLogout = async () => {
+  const handleLogout = async (redirectTo: '/' | '/login' = '/') => {
     await logout();
     setDrawerOpen(false);
-    navigate('/');
+    setAccountMenuOpen(false);
+    navigate(redirectTo);
   };
 
   const handleQuickSearch = (e: React.FormEvent) => {
@@ -186,7 +204,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Shield size={18} /> Privacy Notice
           </NavLink>
           {user ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={handleLogout}>
+            <button type="button" className="btn btn-signout btn-sm" onClick={() => void handleLogout('/')}>
               <LogOut size={15} /> Sign Out
             </button>
           ) : (
@@ -238,19 +256,89 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </form>
 
             {user ? (
-              <Link
-                to={user.role === 'admin' ? '/admin' : '/dashboard'}
-                className="topbar-profile-pill"
-                title={user.email}
-              >
-                <span className={`avatar-circle ${user.role === 'admin' ? 'admin' : ''}`}>
-                  {initials}
-                </span>
-                <span className="profile-text">
-                  <span className="profile-name">{user.fullName.split(' ').slice(0, 2).join(' ')}</span>
-                  <span className="profile-role">{user.role === 'admin' ? 'Administrator' : 'Student'}</span>
-                </span>
-              </Link>
+              <div className="topbar-account-group" ref={accountMenuRef}>
+                <button
+                  type="button"
+                  className="topbar-profile-pill"
+                  title={user.email}
+                  aria-expanded={accountMenuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setAccountMenuOpen((prev) => !prev)}
+                >
+                  <span className={`avatar-circle ${user.role === 'admin' ? 'admin' : ''}`}>
+                    {initials}
+                  </span>
+                  <span className="profile-text">
+                    <span className="profile-name">{user.fullName.split(' ').slice(0, 2).join(' ')}</span>
+                    <span className="profile-role">{user.role === 'admin' ? 'Administrator' : 'Student'}</span>
+                  </span>
+                  <ChevronDown size={15} className="profile-chevron" aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-signout btn-sm topbar-signout-btn"
+                  onClick={() => void handleLogout('/')}
+                  aria-label="Sign out"
+                  title="Sign out"
+                >
+                  <LogOut size={15} />
+                  <span className="signout-label">Sign Out</span>
+                </button>
+
+                {accountMenuOpen && (
+                  <div className="account-dropdown" role="menu">
+                    <div className="account-dropdown-head">
+                      <strong>{user.fullName}</strong>
+                      <div className="muted small">{user.email}</div>
+                      <div className="muted small">{user.studentId}</div>
+                    </div>
+                    <Link
+                      to="/dashboard"
+                      className="account-dropdown-item"
+                      role="menuitem"
+                      onClick={() => setAccountMenuOpen(false)}
+                    >
+                      <LayoutDashboard size={15} /> My Dashboard
+                    </Link>
+                    <Link
+                      to="/my-submissions"
+                      className="account-dropdown-item"
+                      role="menuitem"
+                      onClick={() => setAccountMenuOpen(false)}
+                    >
+                      <ClipboardList size={15} /> My Submissions &amp; Claims
+                    </Link>
+                    {user.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        className="account-dropdown-item"
+                        role="menuitem"
+                        onClick={() => setAccountMenuOpen(false)}
+                      >
+                        <ShieldCheck size={15} /> Admin Dashboard
+                      </Link>
+                    )}
+                    <div className="account-dropdown-divider" />
+                    <button
+                      type="button"
+                      className="account-dropdown-item"
+                      role="menuitem"
+                      onClick={() => void handleLogout('/login')}
+                    >
+                      <ArrowLeftRight size={15} /> Switch Account
+                    </button>
+                    <button
+                      type="button"
+                      className="account-dropdown-item danger"
+                      role="menuitem"
+                      onClick={() => void handleLogout('/')}
+                    >
+                      <LogOut size={15} /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="row-gap">
                 <Link to="/login" className="btn btn-secondary btn-sm">
