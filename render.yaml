@@ -3,14 +3,23 @@ services:
     name: campus-lost-found
     runtime: node
     plan: free
-    rootDir: campus-lost-found
-    buildCommand: npm ci
-    startCommand: npm start
+    buildCommand: npm --prefix frontend ci --include=dev && npm --prefix frontend run build && MONGOMS_DISABLE_POSTINSTALL=1 npm --prefix backend ci --include=dev && npm --prefix backend run build
+    startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: SESSION_SECRET
+      - key: HOST
+        value: 0.0.0.0
+      - key: JWT_SECRET
         generateValue: true
       - key: MONGODB_URI
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: AI_ASSISTANT_ENABLED
+        value: "true"
+      - key: AI_PROVIDER_API_KEY
         sync: false
