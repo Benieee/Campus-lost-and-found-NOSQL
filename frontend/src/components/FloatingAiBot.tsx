@@ -1,12 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ArrowUp, Bot, ExternalLink, Minimize2, Sparkles } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowUp, Bot, ExternalLink, FileEdit, Minimize2, Sparkles } from 'lucide-react';
 import { ApiError, assistantApi } from '../api/client';
-import type { AssistantReply } from '../types';
+import type { AssistantDraft, AssistantReply } from '../types';
 
 interface CursorOrbProps {
   size?: 'sm' | 'md' | 'lg';
   interactive?: boolean;
+}
+
+/**
+ * Renders lightweight inline bold (**text**) and line breaks cleanly without dangerouslySetInnerHTML.
+ */
+export function FormattedAssistantText({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <>
+      {lines.map((line, lineIdx) => {
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <React.Fragment key={lineIdx}>
+            {parts.map((part, idx) =>
+              part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+                <strong key={idx}>{part.slice(2, -2)}</strong>
+              ) : (
+                <React.Fragment key={idx}>{part}</React.Fragment>
+              )
+            )}
+            {lineIdx < lines.length - 1 ? <br /> : null}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
 }
 
 /**
@@ -114,11 +140,14 @@ interface MiniTurn {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  streaming?: boolean;
+  statusText?: string;
   replyData?: AssistantReply;
 }
 
 export function FloatingAiBot() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -128,10 +157,11 @@ export function FloatingAiBot() {
       id: 'welcome',
       role: 'assistant',
       content:
-        'Hi! I am the Bugema Lost & Found AI Assistant. Ask me to search publicly visible found items, guide you through filing a report, or help draft a claim explanation.'
+        'Hi! I am the Bugema Lost & Found AI Assistant. Ask me anything in real time — search publicly visible found items, see what is currently in storage, find campus holding desks, or draft a lost report or claim.'
     }
   ]);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const hidden =
     location.pathname === '/assistant' ||
@@ -148,6 +178,12 @@ export function FloatingAiBot() {
   }, [open]);
 
   useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     if (open) {
       endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
@@ -155,25 +191,86 @@ export function FloatingAiBot() {
 
   if (hidden) return null;
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = input.trim();
-    if (clean.length < 2 || sending) return;
+  const openDraftInLostForm = (draft: AssistantDraft) => {
+    setOpen(false);
+    navigate('/report-lost', {
+      state: {
+        aiDraft: {
+          itemName: draft.fields.itemName || '',
+          category: draft.fields.category || 'Other',
+          description: draft.fields.description || '',
+          identifyingDetails: '',
+          lastKnownLocation: draft.fields.lastKnownLocation || '',
+          dateLost: draft.fields.dateLost || new Date().toISOString().slice(0, 10),
+          approximateTimeLost: draft.fields.approximateTimeLost || ''
+        }
+      }
+    });
+  };
+
+  const sendMessage = async (rawText: string) => {
+    const clean = rawText.trim();
+    if (!clean || sending) return;
 
     setError('');
     setInput('');
-    const nextTurns: MiniTurn[] = [...turns, { id: `u-${Date.now()}`, role: 'user', content: clean }];
-    setTurns(nextTurns);
+    const userTurnId = `u-${Date.now()}`;
+    const botTurnId = `a-${Date.now() + 1}`;
+    const priorHistory = turns
+      .filter((t) => t.id !== 'welcome' && t.content.trim().length > 0)
+      .slice(-8)
+      .map((t) => ({ role: t.role, content: t.content }));
+
+    setTurns((prev) => [
+      ...prev,
+      { id: userTurnId, role: 'user', content: clean },
+      { id: botTurnId, role: 'assistant', content: '', streaming: true, statusText: 'Thinking…' }
+    ]);
     setSending(true);
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const history = nextTurns.slice(-4).map((t) => ({ role: t.role, content: t.content }));
-      const replyData = await assistantApi.chat({ message: clean, history });
-      setTurns((prev) => [
-        ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', content: replyData.reply, replyData }
-      ]);
+      await assistantApi.streamChat(
+        { message: clean, history: priorHistory },
+        {
+          signal: controller.signal,
+          onStatus: (statusText) => {
+            setTurns((prev) =>
+              prev.map((t) => (t.id === botTurnId ? { ...t, statusText } : t))
+            );
+          },
+          onToken: (token) => {
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === botTurnId
+                  ? { ...t, content: t.content + token, statusText: undefined }
+                  : t
+              )
+            );
+          },
+          onDone: (replyData) => {
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === botTurnId
+                  ? {
+                      ...t,
+                      content: replyData.reply,
+                      streaming: false,
+                      statusText: undefined,
+                      replyData
+                    }
+                  : t
+              )
+            );
+          }
+        }
+      );
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setTurns((prev) => prev.filter((t) => t.id !== botTurnId || t.content.length > 0));
       if (err instanceof ApiError && err.status === 503) {
         setError('AI assistant is temporarily unavailable. Core search and reporting remain online.');
       } else {
@@ -182,6 +279,11 @@ export function FloatingAiBot() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    void sendMessage(input);
   };
 
   return (
@@ -193,8 +295,8 @@ export function FloatingAiBot() {
               <Bot size={18} color="#f5b700" />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>Bugema AI Assistant</div>
-                <div style={{ fontSize: '0.72rem', opacity: 0.78 }}>
-                  AI-generated · Public listings only
+                <div style={{ fontSize: '0.72rem', opacity: 0.8 }}>
+                  Real-time live · Public listings only
                 </div>
               </div>
             </div>
@@ -220,35 +322,106 @@ export function FloatingAiBot() {
             </div>
           </div>
 
-          <div className="floating-bot-messages">
-            {turns.map((turn) => (
-              <div
-                key={turn.id}
-                className={`mini-msg ${turn.role === 'user' ? 'mini-msg-user' : 'mini-msg-bot'}`}
-              >
-                <div>{turn.content}</div>
-                {turn.replyData && turn.replyData.suggestedListings.length > 0 && (
-                  <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a67400' }}>
-                      <Sparkles size={12} style={{ verticalAlign: 'middle' }} /> Suggestions (Staff verify):
-                    </div>
-                    {turn.replyData.suggestedListings.slice(0, 3).map((item) => (
-                      <Link
-                        key={item.id}
-                        to={item.url}
-                        className="mini-listing-link"
-                        onClick={() => setOpen(false)}
-                      >
-                        <strong>{item.itemName}</strong>
-                        <span>{item.locationFound}</span>
-                      </Link>
-                    ))}
+          <div className="floating-bot-messages" aria-live="polite">
+            {turns.map((turn, idx) => {
+              const isLatestBot = turn.role === 'assistant' && idx === turns.length - 1;
+              return (
+                <div
+                  key={turn.id}
+                  className={`mini-msg ${turn.role === 'user' ? 'mini-msg-user' : 'mini-msg-bot'}`}
+                >
+                  <div>
+                    {turn.content ? (
+                      <>
+                        <FormattedAssistantText text={turn.content} />
+                        {turn.streaming ? (
+                          <span aria-hidden="true" style={{ opacity: 0.7, marginLeft: 2 }}>
+                            ▍
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span style={{ opacity: 0.72 }}>{turn.statusText || 'Thinking…'}</span>
+                    )}
                   </div>
-                )}
+
+                  {turn.replyData && turn.replyData.suggestedListings.length > 0 && (
+                    <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#a67400' }}>
+                        <Sparkles size={12} style={{ verticalAlign: 'middle' }} /> Suggestions (Staff verify):
+                      </div>
+                      {turn.replyData.suggestedListings.slice(0, 4).map((item) => (
+                        <Link
+                          key={item.id}
+                          to={item.url}
+                          className="mini-listing-link"
+                          onClick={() => setOpen(false)}
+                        >
+                          <strong>{item.itemName}</strong>
+                          <span>
+                            {item.locationFound} · Held at {item.holdingLocation}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {turn.replyData?.draft && turn.replyData.draft.type === 'lost_report' && (
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ fontSize: '0.74rem', padding: '5px 10px', minHeight: 30 }}
+                        onClick={() => openDraftInLostForm(turn.replyData!.draft!)}
+                      >
+                        <FileEdit size={13} /> Open Draft in Lost Form
+                      </button>
+                    </div>
+                  )}
+
+                  {isLatestBot &&
+                    !turn.streaming &&
+                    turn.replyData &&
+                    turn.replyData.followUpQuestions.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 9,
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 6
+                        }}
+                      >
+                        {turn.replyData.followUpQuestions.slice(0, 3).map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            onClick={() => void sendMessage(q)}
+                            disabled={sending}
+                            style={{
+                              border: '1px solid rgba(13, 71, 161, 0.22)',
+                              background: 'rgba(13, 71, 161, 0.06)',
+                              color: '#0d47a1',
+                              borderRadius: 999,
+                              padding: '4px 9px',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              textAlign: 'left'
+                            }}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                </div>
+              );
+            })}
+            {error && (
+              <div className="alert alert-warning small" style={{ marginBottom: 0 }}>
+                {error}
               </div>
-            ))}
-            {sending && <div className="mini-msg mini-msg-bot">Searching public listings…</div>}
-            {error && <div className="alert alert-warning small" style={{ marginBottom: 0 }}>{error}</div>}
+            )}
             <div ref={endRef} />
           </div>
 
@@ -260,14 +433,14 @@ export function FloatingAiBot() {
               id="floating-bot-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder='Try "blue bottle near library"…'
+              placeholder='Ask anything — e.g. "what was found?" or "lost keys"…'
               disabled={sending}
             />
             <button
               type="submit"
               className="ai-send-btn"
               style={{ width: 36, height: 36 }}
-              disabled={sending || input.trim().length < 2}
+              disabled={sending || input.trim().length < 1}
               aria-label="Send message"
             >
               <ArrowUp size={16} />

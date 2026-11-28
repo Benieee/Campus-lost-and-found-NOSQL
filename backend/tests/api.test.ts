@@ -736,6 +736,66 @@ describe('Bugema Campus Lost & Found API', () => {
       expect(foundListRes.status).toBe(200);
       expect(Array.isArray(foundListRes.body.items)).toBe(true);
     });
+
+    it('responds naturally to greetings, live catalog queries, desk questions, and streams real-time SSE tokens without leaking private data', async () => {
+      const { user: staff, password: staffPass } = await createAccount({
+        email: 'staff.stream@example.edu',
+        studentId: 'BU-STF-909',
+        role: 'admin'
+      });
+      const staffAgent = await loginAgent(staff.email, staffPass);
+
+      await staffAgent.post('/api/locations').send({
+        name: 'Main Gate Security Desk',
+        code: 'SEC-99',
+        buildingArea: 'Campus Entrance',
+        isHoldingDesk: true,
+        description: '24/7 central intake desk'
+      });
+
+      await staffAgent.post('/api/found-items').send({
+        itemName: 'Green Mechanical Pencil Case',
+        category: 'Books & Stationery',
+        description: 'Zippered green pouch found in Main Library.',
+        identifyingDetails: 'HIDDEN-NAME-TAG-ZZ77 inside pocket',
+        locationFound: 'Main Library Circulation Desk',
+        dateFound: new Date().toISOString().slice(0, 10),
+        holdingLocation: 'Main Gate Security Desk'
+      });
+
+      // 1. Greeting replies conversationally (not "did not see a close match")
+      const hiRes = await request(app).post('/api/assistant/chat').send({ message: 'hi' });
+      expect(hiRes.status).toBe(200);
+      expect(hiRes.body.reply).toMatch(/hello|welcome/i);
+      expect(hiRes.body.reply).not.toMatch(/did not see a close match/i);
+
+      // 2. Live browse returns active public found items
+      const browseRes = await request(app).post('/api/assistant/chat').send({
+        message: 'Show me recently found items'
+      });
+      expect(browseRes.status).toBe(200);
+      expect(browseRes.body.suggestedListings.length).toBeGreaterThanOrEqual(1);
+      expect(browseRes.body.suggestedListings[0].itemName).toContain('Green Mechanical Pencil Case');
+      expect(JSON.stringify(browseRes.body)).not.toContain('HIDDEN-NAME-TAG-ZZ77');
+
+      // 3. Holding desk question returns live locations
+      const deskRes = await request(app).post('/api/assistant/chat').send({
+        message: 'Where are the campus holding desks?'
+      });
+      expect(deskRes.status).toBe(200);
+      expect(deskRes.body.reply).toContain('Main Gate Security Desk');
+
+      // 4. Real-time SSE streaming endpoint emits status, token, and done events cleanly
+      const streamRes = await request(app)
+        .post('/api/assistant/stream')
+        .send({ message: 'I lost a green pencil case near the library' });
+      expect(streamRes.status).toBe(200);
+      expect(streamRes.headers['content-type']).toMatch(/text\/event-stream/i);
+      expect(streamRes.text).toContain('event: token');
+      expect(streamRes.text).toContain('event: done');
+      expect(streamRes.text).toContain('Green Mechanical Pencil Case');
+      expect(streamRes.text).not.toContain('HIDDEN-NAME-TAG-ZZ77');
+    });
   });
 
   describe('Admin Governance: Moderation, Custody, Flagged Reports, Overdue Policy & Privacy Audit', () => {

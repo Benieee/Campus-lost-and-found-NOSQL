@@ -14,7 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { ApiError, assistantApi } from '../api/client';
-import { CursorTrackingBotOrb } from '../components/FloatingAiBot';
+import { CursorTrackingBotOrb, FormattedAssistantText } from '../components/FloatingAiBot';
 import { formatDate, StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../context/AuthContext';
 import type { AssistantDraft, AssistantReply } from '../types';
@@ -23,6 +23,8 @@ interface ChatTurn {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  streaming?: boolean;
+  statusText?: string;
   replyData?: AssistantReply;
 }
 
@@ -30,8 +32,8 @@ const STARTER_CARDS = [
   {
     icon: Search,
     title: 'Search Naturally',
-    desc: 'Describe a lost item in plain words to search public found listings.',
-    prompt: 'I left a blue water bottle or calculator near the science complex or library yesterday'
+    desc: 'Describe a lost item in plain words or ask to see all recently found campus items.',
+    prompt: 'Show me all recently found items currently held on campus'
   },
   {
     icon: FileEdit,
@@ -41,9 +43,9 @@ const STARTER_CARDS = [
   },
   {
     icon: HelpCircle,
-    title: 'Draft Claim Proof',
-    desc: 'Prepare a private ownership explanation for staff verification.',
-    prompt: 'Help me draft a private ownership explanation for a claim on my laptop charger'
+    title: 'Desks & Claim Guide',
+    desc: 'Check Bugema holding desks, office hours, or prepare a private ownership explanation.',
+    prompt: 'Where are the campus holding desks and how do I submit a claim?'
   }
 ];
 
@@ -64,6 +66,7 @@ export function AssistantPage() {
   } | null>(null);
 
   const endRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     assistantApi
@@ -75,6 +78,10 @@ export function AssistantPage() {
       .catch(() => {
         setServiceUnavailable(true);
       });
+
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -87,26 +94,65 @@ export function AssistantPage() {
 
     setError('');
     setInput('');
-    const userTurn: ChatTurn = { id: `u-${Date.now()}`, role: 'user', content: clean };
-    const nextTurns = [...turns, userTurn];
-    setTurns(nextTurns);
+    const userTurnId = `u-${Date.now()}`;
+    const botTurnId = `a-${Date.now() + 1}`;
+    const priorHistory = turns
+      .filter((t) => t.content.trim().length > 0)
+      .slice(-8)
+      .map((t) => ({ role: t.role, content: t.content }));
+
+    setTurns((prev) => [
+      ...prev,
+      { id: userTurnId, role: 'user', content: clean },
+      { id: botTurnId, role: 'assistant', content: '', streaming: true, statusText: 'Thinking…' }
+    ]);
     setSending(true);
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const history = nextTurns.slice(-6).map((t) => ({ role: t.role, content: t.content }));
-      const replyData = await assistantApi.chat({ message: clean, history });
-      setServiceUnavailable(false);
-      setStaffContact(replyData.staffContact);
-      setTurns((prev) => [
-        ...prev,
+      await assistantApi.streamChat(
+        { message: clean, history: priorHistory },
         {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          content: replyData.reply,
-          replyData
+          signal: controller.signal,
+          onStatus: (statusText) => {
+            setTurns((prev) =>
+              prev.map((t) => (t.id === botTurnId ? { ...t, statusText } : t))
+            );
+          },
+          onToken: (token) => {
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === botTurnId
+                  ? { ...t, content: t.content + token, statusText: undefined }
+                  : t
+              )
+            );
+          },
+          onDone: (replyData) => {
+            setServiceUnavailable(false);
+            setStaffContact(replyData.staffContact);
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === botTurnId
+                  ? {
+                      ...t,
+                      content: replyData.reply,
+                      streaming: false,
+                      statusText: undefined,
+                      replyData
+                    }
+                  : t
+              )
+            );
+          }
         }
-      ]);
+      );
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      setTurns((prev) => prev.filter((t) => t.id !== botTurnId || t.content.length > 0));
       if (err instanceof ApiError && (err.status === 503 || err.code === 'AI_UNAVAILABLE')) {
         setServiceUnavailable(true);
         setError(err.message);
@@ -154,15 +200,16 @@ export function AssistantPage() {
     <section className="page-section">
       <div className="container">
         <div className="ai-stage">
-          {/* Glowing Animated Bugema AI Orb + Greeting (matches uploaded dark-orb reference in Bugema colors) */}
+          {/* Glowing Animated Bugema AI Orb + Greeting */}
           <div className="ai-hero-center">
             <CursorTrackingBotOrb size="lg" />
 
             <div className="ai-greeting-sub">Hi, {firstName}</div>
             <h1 className="ai-greeting-title">How can I help today?</h1>
             <p className="ai-greeting-desc">
-              AI Student Support Assistant — search publicly visible found items in plain language,
-              get step-by-step guidance, or draft a report for your review.
+              Real-time AI Student Support Assistant — search publicly visible found items in plain
+              language, browse live campus listings, check holding desks, or draft a report for your
+              review.
             </p>
           </div>
 
@@ -197,7 +244,8 @@ export function AssistantPage() {
                   {turn.role === 'assistant' && (
                     <div className="row-between" style={{ marginBottom: 8 }}>
                       <span className="badge badge-blue">
-                        <Bot size={13} /> AI-Generated Response
+                        <Bot size={13} />{' '}
+                        {turn.streaming ? 'Responding Live…' : 'AI-Generated Response'}
                       </span>
                       <span className="small" style={{ color: 'rgba(255,255,255,0.68)' }}>
                         Advisory only · Staff verify all claims
@@ -205,7 +253,20 @@ export function AssistantPage() {
                     </div>
                   )}
 
-                  <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{turn.content}</p>
+                  <p style={{ margin: 0 }}>
+                    {turn.content ? (
+                      <>
+                        <FormattedAssistantText text={turn.content} />
+                        {turn.streaming ? (
+                          <span aria-hidden="true" style={{ opacity: 0.75, marginLeft: 3 }}>
+                            ▍
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span style={{ opacity: 0.78 }}>{turn.statusText || 'Thinking…'}</span>
+                    )}
+                  </p>
 
                   {/* Suggested public found-item listings */}
                   {turn.replyData && turn.replyData.suggestedListings.length > 0 && (
@@ -286,15 +347,16 @@ export function AssistantPage() {
                     </div>
                   )}
 
-                  {/* Follow-up Question Chips */}
-                  {turn.replyData && turn.replyData.followUpQuestions.length > 0 && (
+                  {/* Follow-up Question Chips — click to send immediately */}
+                  {!turn.streaming && turn.replyData && turn.replyData.followUpQuestions.length > 0 && (
                     <div className="row-gap" style={{ marginTop: 12 }}>
                       {turn.replyData.followUpQuestions.map((q) => (
                         <button
                           key={q}
                           type="button"
                           className="ai-tool-pill"
-                          onClick={() => setInput(q)}
+                          disabled={sending}
+                          onClick={() => void sendMessage(q)}
                         >
                           {q}
                         </button>
@@ -303,23 +365,17 @@ export function AssistantPage() {
                   )}
                 </div>
               ))}
-
-              {sending && (
-                <div className="ai-msg ai-msg-bot" role="status">
-                  Searching public found listings and preparing an answer…
-                </div>
-              )}
               <div ref={endRef} />
             </div>
           )}
 
-          {/* Sleek Prompt Box (matches uploaded LIX prompt bar in Bugema Royal Blue + Gold) */}
+          {/* Sleek Prompt Box */}
           <form onSubmit={handleSubmit} className="ai-prompt-box">
             <div className="ai-prompt-banner">
               <ShieldAlert size={14} />
               <span>
-                AI answers use public listings only — never share passwords or tokens here. Only staff
-                can approve claims or release items.
+                Real-time AI answers use public listings only — never share passwords or tokens
+                here. Only staff can approve claims or release items.
               </span>
             </div>
             <label htmlFor="ai-chat-input" className="sr-only">
@@ -336,11 +392,27 @@ export function AssistantPage() {
                   void sendMessage(input);
                 }
               }}
-              placeholder='Ask me anything — e.g. "I left a blue water bottle near the library yesterday"…'
+              placeholder='Ask me anything — e.g. "hi", "what has been found?", or "I lost my HP charger near ICT lab"…'
               disabled={sending || serviceUnavailable}
             />
             <div className="ai-prompt-footer">
               <div className="row-gap">
+                <button
+                  type="button"
+                  className="ai-tool-pill"
+                  onClick={() => void sendMessage('Show recently found items')}
+                  disabled={sending || serviceUnavailable}
+                >
+                  Recent Found Items
+                </button>
+                <button
+                  type="button"
+                  className="ai-tool-pill"
+                  onClick={() => void sendMessage('Where are the campus holding desks?')}
+                  disabled={sending || serviceUnavailable}
+                >
+                  Holding Desks
+                </button>
                 <button
                   type="button"
                   className="ai-tool-pill"
@@ -349,29 +421,11 @@ export function AssistantPage() {
                 >
                   How to Claim
                 </button>
-                <button
-                  type="button"
-                  className="ai-tool-pill"
-                  onClick={() => void sendMessage('How do I check my claim status?')}
-                  disabled={sending || serviceUnavailable}
-                >
-                  Check Claim Status
-                </button>
-                <button
-                  type="button"
-                  className="ai-tool-pill"
-                  onClick={() =>
-                    void sendMessage('Help me draft a lost report for a missing calculator near Science Complex')
-                  }
-                  disabled={sending || serviceUnavailable}
-                >
-                  Draft Lost Report
-                </button>
               </div>
               <button
                 type="submit"
                 className="ai-send-btn"
-                disabled={sending || serviceUnavailable || input.trim().length < 2}
+                disabled={sending || serviceUnavailable || input.trim().length < 1}
                 aria-label="Send message to AI assistant"
               >
                 <ArrowUp size={18} />
@@ -379,7 +433,7 @@ export function AssistantPage() {
             </div>
           </form>
 
-          {/* 3 Starter Suggestion Cards (matches uploaded 3-card layout) */}
+          {/* 3 Starter Suggestion Cards */}
           {turns.length === 0 && (
             <div className="ai-starter-grid">
               {STARTER_CARDS.map((card) => {

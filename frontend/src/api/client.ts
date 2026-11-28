@@ -297,11 +297,112 @@ export const assistantApi = {
   status: () =>
     request<{
       available: boolean;
+      streamingSupported?: boolean;
+      providerMode?: 'external_llm' | 'campus_assistant';
       staffContact: { desk: string; hours: string; guidance: string };
       privacySummary: string;
     }>('/assistant/status'),
   chat: (payload: {
     message: string;
     history?: Array<{ role: 'user' | 'assistant'; content: string }>;
-  }) => request<AssistantReply>('/assistant/chat', { method: 'POST', body: JSON.stringify(payload) })
+  }) => request<AssistantReply>('/assistant/chat', { method: 'POST', body: JSON.stringify(payload) }),
+  streamChat: async (
+    payload: {
+      message: string;
+      history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    },
+    handlers: {
+      onStatus?: (status: string) => void;
+      onToken?: (token: string) => void;
+      onDone?: (reply: AssistantReply) => void;
+      signal?: AbortSignal;
+    } = {}
+  ): Promise<AssistantReply> => {
+    const response = await fetch(`${API_BASE}/api/assistant/stream`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(payload),
+      signal: handlers.signal
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : { error: await response.text() };
+      throw new ApiError(
+        response.status,
+        data?.error || `Request failed (${response.status}).`,
+        data?.code,
+        data?.details
+      );
+    }
+
+    if (!response.body) {
+      const fallback = await assistantApi.chat(payload);
+      handlers.onToken?.(fallback.reply);
+      handlers.onDone?.(fallback);
+      return fallback;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalReply: AssistantReply | null = null;
+
+    const processEventBlock = (block: string) => {
+      let eventName = 'message';
+      const dataLines: string[] = [];
+      for (const rawLine of block.split('\n')) {
+        const line = rawLine.trimEnd();
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      if (dataLines.length === 0) return;
+      const rawData = dataLines.join('\n');
+      const parsed = JSON.parse(rawData) as Record<string, unknown>;
+
+      if (eventName === 'status' && typeof parsed.text === 'string') {
+        handlers.onStatus?.(parsed.text);
+      } else if (eventName === 'token' && typeof parsed.text === 'string') {
+        handlers.onToken?.(parsed.text);
+      } else if (eventName === 'done') {
+        finalReply = parsed as unknown as AssistantReply;
+        handlers.onDone?.(finalReply);
+      } else if (eventName === 'error') {
+        throw new ApiError(
+          503,
+          typeof parsed.error === 'string' ? parsed.error : 'Assistant stream interrupted.',
+          typeof parsed.code === 'string' ? parsed.code : 'AI_STREAM_ERROR'
+        );
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const block = buffer.slice(0, boundary).trim();
+        buffer = buffer.slice(boundary + 2);
+        if (block) processEventBlock(block);
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+
+    if (buffer.trim()) {
+      processEventBlock(buffer.trim());
+    }
+
+    if (!finalReply) {
+      throw new ApiError(502, 'The assistant stream ended before completing a response.', 'AI_STREAM_INCOMPLETE');
+    }
+    return finalReply;
+  }
 };
